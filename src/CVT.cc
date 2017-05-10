@@ -158,7 +158,7 @@ void CVT::send( Session* session ){
 	    "Transfer-Encoding: chunked\r\n"
 #endif
 	    "\r\n",
-	    VERSION, session->response->getCacheControl().c_str(), (*session->image)->getTimestamp().c_str(), session->outputcompressor->getMimeType().c_str(), basename.c_str() );
+	    VERSION, session->response->getCacheControl().c_str(), (*session->image)->getTimestamp().c_str(), session->outputCompressor->getMimeType().c_str(), basename.c_str() );
 
   session->out->printf( (const char*) str );
 #endif
@@ -358,15 +358,15 @@ void CVT::send( Session* session ){
 
   // Initialise our output compression object - this should set the header of the image as well which is
   // immediately pushed to the client
-  session->outputcompressor->InitCompression( complete_image, resampled_height );
+  session->outputCompressor->InitCompression( complete_image, resampled_height );
 
   // Add any XMP metadata to the image there is any in the original 
   if( (*session->image)->getMetadata("xmp").size() > 0 ){
     if( session->loglevel >= 4 ) *(session->logfile) << "CVT :: Adding XMP metadata" << endl;
-    session->outputcompressor->addXMPMetadata( (*session->image)->getMetadata("xmp") );
+    session->outputCompressor->addXMPMetadata( (*session->image)->getMetadata("xmp") );
   }
 
-  len = session->outputcompressor->getHeaderSize();
+  len = session->outputCompressor->getHeaderSize();
 
 #ifdef CHUNKED
   snprintf( str, 1024, "%X\r\n", len );
@@ -374,7 +374,7 @@ void CVT::send( Session* session ){
   session->out->printf( str );
 #endif
 
-  if( session->out->putStr( (const char*) session->outputcompressor->getHeader(), len ) != len ){
+  if( session->out->putStr( (const char*) session->outputCompressor->getHeader(), len ) != len ){
     if( session->loglevel >= 1 ){
       *(session->logfile) << "CVT :: Error writing output image header" << endl;
     }
@@ -401,7 +401,7 @@ void CVT::send( Session* session ){
   unsigned char* output = new unsigned char[strip_size];
 
   // release the header pointer which is a no-op with JPG but important for PNG
-  session->outputcompressor->deleteHeader();
+  session->outputCompressor->deleteHeader();
 
 
   // there is an opportunity to go parallel with this but it would require a different approach
@@ -420,7 +420,7 @@ void CVT::send( Session* session ){
     }
 
     // Compress the strip
-    len = session->outputcompressor->CompressStrip( input, output, strip_size, strip_height );
+    len = session->outputCompressor->CompressStrip( input, output, strip_size, strip_height );
 
     if( session->loglevel >= 3 ){
       *(session->logfile) << "CVT :: Compressed data strip length is " << len << endl;
@@ -455,7 +455,7 @@ void CVT::send( Session* session ){
   }
 
   // Finish off the image compression
-  len = session->outputcompressor->Finish( output, strip_size );
+  len = session->outputCompressor->Finish( output, strip_size );
 
 #ifdef CHUNKED
   snprintf( str, 1024, "%X\r\n", len );
