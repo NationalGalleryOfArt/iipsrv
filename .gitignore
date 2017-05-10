@@ -16,3 +16,7 @@ Makefile.in
 /ltmain.sh
 /m4/
 /missing
+/fcgi/libfcgi/.deps/
+/libtool
+.deps/
+
