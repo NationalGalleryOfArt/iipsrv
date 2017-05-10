@@ -33,6 +33,11 @@ using namespace std;
 
 extern ofstream logfile;
 
+// for convenience 
+#define byte unsigned char
+#define uint unsigned int
+#define ulong unsigned long
+
 /// Colour spaces - GREYSCALE, sRGB and CIELAB
 enum ColourSpaces { NONE, GREYSCALE, sRGB, CIELAB };
 
