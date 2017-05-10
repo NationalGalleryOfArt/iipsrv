@@ -27,10 +27,10 @@
 #include <cstdio>
 #include <string>
 #include "RawTile.h"
+#include "iccjpeg.h"
 #include "Compressor.h"
 
 using namespace std;
-
 
 extern "C"{
 /* Undefine this to prevent compiler warning
@@ -111,7 +111,7 @@ class JPEGCompressor : public Compressor {
       @param rawtile tile containing the image to be compressed
       @param strip_height pixel height of the strip we want to compress
    */
-  void InitCompression( const RawTile& rawtile, unsigned int strip_height ) throw (string) OVERRIDE;
+  void InitCompression( const RawTile& rawtile, unsigned int strip_height, unsigned long icc_profile_len, unsigned char *icc_profile_buf ) throw (std::string) OVERRIDE;
 
   /// Compress a strip of image data
   /** @param s source image data
@@ -129,7 +129,7 @@ class JPEGCompressor : public Compressor {
 
   /// Compress an entire buffer of image data at once in one command
   /** @param t tile of image data */
-  int Compress( RawTile& t ) throw (string) OVERRIDE;
+  int Compress( RawTile& t, unsigned long icc_profile_len, unsigned char *icc_profile_buf ) throw (std::string) OVERRIDE;
 
 
   /// Add metadata to the JPEG header

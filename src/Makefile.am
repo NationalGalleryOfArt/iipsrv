@@ -37,6 +37,8 @@ iipsrv_fcgi_SOURCES = \
 			JPEGCompressor.cc \
                         Filters.h \
                         Filters.cc \
+                        iccjpeg.h \
+                        iccjpeg.cc \
 			RawTile.h \
 			Timer.h \
 			Cache.h \

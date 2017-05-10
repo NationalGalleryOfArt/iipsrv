@@ -166,17 +166,22 @@ void CVT::send( Session* session ){
 
   // Get our requested region from our TileManager
   TileManager tilemanager( session->tileCache, *session->image, session->watermark, session->jpeg, session->logfile, session->loglevel );
+
+  // Note: if the source image is a TIFF, pulling a region results in libTIFF changing the memory contents of the ICC profile which is one
+  // reason a copy of the ICC profile is created in the Session
   RawTile complete_image = tilemanager.getRegion( requested_res,
 						  session->view->xangle, session->view->yangle,
 						  session->view->getLayers(),
 						  view_left, view_top, view_width, view_height );
 
+  bool appliedColorFilters = false;
 
-
-  // Convert CIELAB to sRGB
+  // Convert CIELAB to sRGB <-- Note: not sure how to reconcile this type of colorspace conversion when 
+  // embedded ICC profiles are present so just disabling ICC in these cases for now
   if( (*session->image)->getColourSpace() == CIELAB ){
     if( session->loglevel >= 5 ) function_timer.start();
     filter_LAB2sRGB( complete_image );
+    appliedColorFilters = true;
     if( session->loglevel >= 5 ){
       *(session->logfile) << "CVT :: Converting from CIELAB->sRGB in "
 			  << function_timer.getTime() << " microseconds" << endl;
@@ -192,6 +197,7 @@ void CVT::send( Session* session ){
     {
       if( session->loglevel >= 5 ) function_timer.start();
       filter_normalize( complete_image, (*session->image)->max, (*session->image)->min );
+      appliedColorFilters = true;
       if( session->loglevel >= 5 ){
 	*(session->logfile) << "CVT :: Converting to floating point and normalizing in "
 			    << function_timer.getTime() << " microseconds" << endl;
@@ -203,6 +209,7 @@ void CVT::send( Session* session ){
     if( session->view->shaded ){
       if( session->loglevel >= 5 ) function_timer.start();
       filter_shade( complete_image, session->view->shade[0], session->view->shade[1] );
+      appliedColorFilters = true;
       if( session->loglevel >= 5 ){
 	*(session->logfile) << "CVT :: Applying hill-shading in " << function_timer.getTime() << " microseconds" << endl;
       }
@@ -213,6 +220,7 @@ void CVT::send( Session* session ){
     if( session->view->ctw.size() ){
       if( session->loglevel >= 5 ) function_timer.start();
       filter_twist( complete_image, session->view->ctw );
+      appliedColorFilters = true;
       if( session->loglevel >= 5 ){
 	*(session->logfile) << "CVT :: Applying color twist in " << function_timer.getTime() << " microseconds" << endl;
       }
@@ -224,6 +232,7 @@ void CVT::send( Session* session ){
       float gamma = session->view->getGamma();
       if( session->loglevel >= 5 ) function_timer.start();
       filter_gamma( complete_image, gamma );
+      appliedColorFilters = true;
       if( session->loglevel >= 5 ){
 	*(session->logfile) << "CVT :: Applying gamma of " << gamma << " in "
 			    << function_timer.getTime() << " microseconds" << endl;
@@ -235,6 +244,7 @@ void CVT::send( Session* session ){
     if( session->view->inverted ){
       if( session->loglevel >= 5 ) function_timer.start();
       filter_inv( complete_image );
+      appliedColorFilters = true;
       if( session->loglevel >= 5 ){
 	*(session->logfile) << "CVT :: Applying inversion in " << function_timer.getTime() << " microseconds" << endl;
       }
@@ -245,6 +255,7 @@ void CVT::send( Session* session ){
     if( session->view->cmapped ){
       if( session->loglevel >= 5 ) function_timer.start();
       filter_cmap( complete_image, session->view->cmap );
+      appliedColorFilters = true;
       if( session->loglevel >= 5 ){
 	*(session->logfile) << "CVT :: Applying color map in " << function_timer.getTime() << " microseconds" << endl;
       }
@@ -255,6 +266,7 @@ void CVT::send( Session* session ){
     {
       if( session->loglevel >= 5 ) function_timer.start();
       filter_contrast( complete_image, session->view->getContrast() );
+      appliedColorFilters = true;
       if( session->loglevel >= 5 ){
 	*(session->logfile) << "CVT :: Applying contrast of " << session->view->getContrast()
 			    << " and converting to 8bit in " << function_timer.getTime() << " microseconds" << endl;
@@ -306,6 +318,7 @@ void CVT::send( Session* session ){
     if( session->loglevel >= 5 ) function_timer.start();
 
     filter_flatten( complete_image, output_channels );
+    appliedColorFilters = true;
 
     if( session->loglevel >= 5 ){
       *(session->logfile) << "CVT :: Flattening to " << output_channels << " channel"
@@ -322,6 +335,7 @@ void CVT::send( Session* session ){
     if( session->loglevel >= 5 ) function_timer.start();
 
     filter_greyscale( complete_image );
+    appliedColorFilters = true;
 
     if( session->loglevel >= 5 ){
       *(session->logfile) << "CVT :: Converting to greyscale in "
@@ -365,11 +379,37 @@ void CVT::send( Session* session ){
     }
   }
 
-  // Initialise our output compression object - this should set the header of the image as well which is
-  // immediately pushed to the client
-  session->outputCompressor->InitCompression( complete_image, resampled_height );
+  unsigned long iccLen=0;
+  unsigned char *iccBuf=NULL;
 
-  // Add any XMP metadata to the image there is any in the original 
+  // fetch ICC profile from the original image if one exists and if we are retaining ICC profiles
+  // and haven't applied any color manipulation filters
+  if ( session->retain_source_icc_profile == 1 ) {
+
+    if ( !appliedColorFilters ) {
+        // attempt to save the color profile to the session if it's not already set
+      if ( session->icc_profile_buf == NULL )
+        (*session->image)->getICCProfile( &(session->icc_profile_len), &(session->icc_profile_buf) );
+
+      // apply the color profile to the JPEG
+      if ( session->icc_profile_buf != NULL ) {
+        iccLen = session->icc_profile_len;
+        iccBuf = session->icc_profile_buf;
+      }
+
+      if( session->loglevel >= 2 )
+        (*session->logfile) << "CVT :: ICC Profile Length (bytes): " << iccLen << endl;
+    }
+    else {
+      if( session->loglevel >= 2 )
+        (*session->logfile) << "CVT :: Did NOT retain original embedded Color Profile since color filters were applied: " << endl;
+    }
+  }
+
+  // Initialise our JPEG compression object
+  session->jpeg->InitCompression( complete_image, resampled_height, iccLen, iccBuf );
+
+  // Add XMP metadata if this exists
   if( (*session->image)->getMetadata("xmp").size() > 0 ){
     if( session->loglevel >= 4 ) *(session->logfile) << "CVT :: Adding XMP metadata" << endl;
     session->outputCompressor->addXMPMetadata( (*session->image)->getMetadata("xmp") );

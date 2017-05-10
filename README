@@ -255,6 +255,10 @@ Options include PNG_NO_FILTERS (IIP Server default), PNG_FILTER_NONE,
 PNG_FILTER_SUB, PNG_FILTER_UP, PNG_FILTER_AVG, PNG_FILTER_PAETH, PNG_ALL_FILTERS 
 Note: see the libpng documentation for full information about these settings.
 
+RETAIN_SOURCE_ICC_PROFILE: Read the embedded ICC profile from the source image
+and insert it into all generated JPEG tiles.  Currently only implemented for
+PTIF source images and has not been tested with color operations. Defaults to 0.
+
 
 IMAGE PATHS
 -----------
