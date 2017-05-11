@@ -47,6 +47,7 @@
 #define OVERSAMPLING_FACTOR 1; // no oversampling is default
 #define NO_FILTER_DEFINED -999;
 #define RETAIN_SOURCE_ICC_PROFILE 0
+#define IIIF_PREFIX ""; // e.g. /iiif
 
 #include <string>
 
@@ -332,6 +333,14 @@ class Environment {
     return os;
   }
 
+  static std::string getIIIFPrefix(){
+    char* envpara = getenv( "IIIF_PREFIX" );
+    std::string iiif_prefix;
+    if( envpara ) iiif_prefix = std::string( envpara );
+    else iiif_prefix = IIIF_PREFIX;
+    return iiif_prefix;
+  }
+
 #ifdef HAVE_PNG
 
   /****************************************
@@ -393,7 +402,7 @@ class Environment {
     if ( filterType == checkType ) {
         filterType = PNG_NO_FILTERS;
     }
-    return 0;
+    return filterType;
   }
 
 #endif // HAVE_PNG

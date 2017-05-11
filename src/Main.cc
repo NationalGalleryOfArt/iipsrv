@@ -281,6 +281,8 @@ int main( int argc, char *argv[] )
   // Get any Base URL setting
   string base_url = Environment::getBaseURL();
 
+  // Get any Base URL setting
+  string iiif_prefix = Environment::getIIIFPrefix();
 
   // Get requested HTTP Cache-Control setting
   string cache_control = Environment::getCacheControl();
@@ -540,7 +542,37 @@ int main( int argc, char *argv[] )
       header = FCGX_GetParam( "QUERY_STRING", request.envp );
 #endif
 
-      const string request_string = (header!=NULL)? header : "";
+      string request_string = (header!=NULL)? header : "";
+      if( request_string.empty() ){
+        /*****************************************************************************************************************
+         if we don't have a query string, check for a match to the IIIF prefix before giving up
+         this prevents having to configure a mod_rewrite and / or mod_proxy configuration to handle native IIIF URLs
+         and it's important on heavily loaded servers for two reasons:
+           * mod_rewrite doesn't pool proxy connections which means it can double or more the number of ports
+             required to fullfill the request
+           * mod_proxy doesn't really support query strings so while it is possible to create a ProxyPassMatch request
+             that saves the query string in a substitution parameter, it escapes the ? in the proxied URL and renders it
+             useless as a query string - other trickery might work to unescape this on the subsequent request but that is
+             starting to become quite complex when all we really want is to handle a IIIF URL according to the spec - thus
+             this enhancement...
+        ******************************************************************************************************************/
+        if ( !iiif_prefix.empty() ) {
+          char *requri = FCGX_GetParam( "REQUEST_URI", request.envp );
+          const string request_uri = (requri!=NULL) ? requri : "";
+
+          // try to find the iiif_prefix in the request uri
+          unsigned int loc = request_uri.find(iiif_prefix);
+          if ( loc == 0 ) {
+            // this is indeed a IIIF request
+            unsigned iLen = iiif_prefix.length();
+            unsigned rLen = request_uri.length();
+            string new_request_string = "IIIF=" + request_uri.substr(iLen,rLen-iLen);
+            request_string = new_request_string;
+            if (loglevel > 3)
+              logfile << "SYNTHESIZED QUERY STRING:" << request_string;
+          }
+        }
+      }
 
       // Check that we actually have a request string
       if( request_string.empty() ){

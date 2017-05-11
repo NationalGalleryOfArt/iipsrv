@@ -275,6 +275,15 @@ RETAIN_SOURCE_ICC_PROFILE: Read the embedded ICC profile from the source image
 and insert it into all generated JPEG tiles.  Currently only implemented for
 PTIF source images and has not been tested with color operations. Defaults to 0.
 
+IIIF_PREFIX: The URL prefix for this server's IIIF service, e.g. "/iiif". When no
+query string is supplied to a URL, setting this configuration parameter will cause
+IIP Server to interpret the portion of the REQUEST_URI after the IIIF_PREFIX
+as if it had been supplied to the IIIF command.  Use in conjunction with a
+ScriptAlias (or equivalent) directive to force resolution of the IIIF_PREFIX
+to the IIP FCGI path, e.g. ScriptAlias /iiif /var/www/fastcgi/iipsrv.fcgi
+This configuration option enables you to directly handle IIIF URLs without
+having to rewrite or proxy them to use a query string. Defaults to "".
+
 
 IMAGE PATHS
 -----------

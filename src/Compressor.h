@@ -71,7 +71,7 @@ class Compressor {
             @param rawtile tile containing the image to be compressed
             @param strip_height pixel height of the strip we want to compress
         */
-        virtual void InitCompression( const RawTile& rawtile, unsigned int strip_height ) throw (string) { logfile << "compressor here" << endl;};
+        virtual void InitCompression( const RawTile& rawtile, unsigned int strip_height, unsigned long icc_profile_len, unsigned char *icc_profile_buf ) throw (string) { logfile << "compressor here" << endl;};
 
         /// Compress a strip of image data
         /** @param s source image data
@@ -89,7 +89,7 @@ class Compressor {
 
         /// Compress an entire buffer of image data at once in one command
         /** @param t tile of image data */
-        virtual int Compress( RawTile& t ) throw (string) { return 0; }
+        virtual int Compress( RawTile& t, unsigned long icc_profile_len, unsigned char *icc_profile_buf ) throw (string) { return 0; }
 
         /// Add metadata to the image header
         /** @param m metadata */

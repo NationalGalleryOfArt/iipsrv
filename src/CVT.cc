@@ -406,8 +406,9 @@ void CVT::send( Session* session ){
     }
   }
 
-  // Initialise our JPEG compression object
-  session->jpeg->InitCompression( complete_image, resampled_height, iccLen, iccBuf );
+  // Initialise our output compression object - this should set the header of the image as well which is
+  // immediately pushed to the client
+  session->outputCompressor->InitCompression( complete_image, resampled_height, iccLen, iccBuf );
 
   // Add XMP metadata if this exists
   if( (*session->image)->getMetadata("xmp").size() > 0 ){
@@ -518,7 +519,6 @@ void CVT::send( Session* session ){
 
   delete[] output;
 
-
 #ifdef CHUNKED
   // Send closing chunk CRLF
   session->out->printf( "\r\n" );
@@ -534,7 +534,6 @@ void CVT::send( Session* session ){
 
   // Inform our response object that we have sent something to the client
   session->response->setImageSent();
-
 
 
   // Total CVT response time
