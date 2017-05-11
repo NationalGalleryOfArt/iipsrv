@@ -44,7 +44,7 @@ typedef struct {
   png_infop info_ptr;               /**< png info pointer */
 } png_destination_mgr;
 
-typedef png_destination_mgr * png_destination_ptr;
+typedef png_destination_mgr *png_destination_ptr;
 
 
 /// Wrapper class to PNG library
@@ -98,7 +98,7 @@ public:
       @param rawtile tile containing the image to be compressed
       @param strip_height pixel height of the strip we want to compress
    */
-  void InitCompression( const RawTile& rawtile, unsigned int strip_height ) throw (std::string) OVERRIDE;
+  void InitCompression( const RawTile& rawtile, unsigned int strip_height, unsigned long icc_profile_len, unsigned char *icc_profile_buf ) throw (std::string) OVERRIDE;
 
 
   /// Compress a strip of image data
@@ -117,7 +117,7 @@ public:
 
   /// Compress an entire buffer of image data at once in one command
   /** @param t tile of image data */
-  int Compress( RawTile& t ) throw (std::string) OVERRIDE;
+  int Compress( RawTile& t, unsigned long icc_profile_len, unsigned char *icc_profile_buf ) throw (std::string) OVERRIDE;
 
   /// Add metadata to the JPEG header
   /** @param m metadata */

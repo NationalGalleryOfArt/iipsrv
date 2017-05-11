@@ -60,7 +60,7 @@ png_cexcept_error(png_structp png_ptr, png_const_charp msg)
    }
 }
 
-void PNGCompressor::InitCompression( const RawTile& rawtile, unsigned int strip_height ) throw (string)
+void PNGCompressor::InitCompression( const RawTile& rawtile, unsigned int strip_height, unsigned long icc_profile_len, unsigned char *icc_profile_buf ) throw (string)
 {
 
   ofstream ofs;
@@ -170,13 +170,16 @@ unsigned int PNGCompressor::Finish(unsigned char *o, unsigned long olen) throw (
   png_write_end(dest.png_ptr,  dest.info_ptr);
 
   // Clean up after the write, and free any memory allocated
-  png_destroy_write_struct(&(dest.png_ptr), (png_infopp) NULL);
+  png_destroy_write_struct( &(dest.png_ptr), &(dest.info_ptr) );
+
+  dest.png_ptr = NULL;
+  dest.info_ptr = NULL;
 
   return dest.size ;
 }
 
 
-int PNGCompressor::Compress( RawTile& rawtile ) throw (string) {
+int PNGCompressor::Compress( RawTile& rawtile, unsigned long icc_profile_len, unsigned char *icc_profile_buf ) throw (string) {
 
   logfile << "PNGCompressor::Compress - !!!!!!!! NOT IMPLEMENTED - IIP DOESN'T !!!!!!" << endl;
 
