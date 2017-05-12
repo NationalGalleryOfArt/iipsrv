@@ -20,13 +20,18 @@
 
 
 #include "View.h"
+#include "RawTile.h"
 #include <cmath>
 using namespace std;
 
 
 /// Calculate optimal resolution for a given requested pixel dimension
 void View::calculateResolution( unsigned int dimension,
-				unsigned int requested_size ){
+				unsigned int requested_size ) {
+
+logfile  << "dimension:" << dimension << endl;
+logfile  << "max_resolutions:" << max_resolutions << endl;
+logfile  << "requested_size:" << requested_size << endl;
 
   unsigned int j = 1;
   unsigned int d = dimension;
@@ -40,6 +45,12 @@ void View::calculateResolution( unsigned int dimension,
     j++;
   }
 
+logfile  << "max_resolutions:" << max_resolutions << endl;
+logfile  << "requested_size:" << requested_size << endl;
+logfile  << "d:" << d << endl;
+logfile  << "rs:" << rs << endl;
+logfile  << "j:" << j << endl;
+
   // Limit j to the maximum resolution
   if( j > max_resolutions+1 ) j = max_resolutions + 1;
 
@@ -51,18 +62,20 @@ void View::calculateResolution( unsigned int dimension,
   if( resolution > (signed int)(max_resolutions-1) ) resolution = max_resolutions - 1;
   if( resolution < 0 ) resolution = 0;
 
+logfile  << "j:" << j << endl;
+
 }
 
 
-unsigned int View::getResolution(){
+unsigned int View::getResolution(float oversamplingFactor ){
 
   unsigned int i;
 
   resolution = max_resolutions - 1;
 
   // Note that we use floor() as that is how our resolutions are calculated
-  if( requested_width ) View::calculateResolution( width, floor((float)requested_width/(float)view_width) );
-  if( requested_height ) View::calculateResolution( height, floor((float)requested_height/(float)view_height) );
+  if( requested_width ) View::calculateResolution( width, floor((float)requested_width*oversamplingFactor/(float)view_width) );
+  if( requested_height ) View::calculateResolution( height, floor((float)requested_height*oversamplingFactor/(float)view_height) );
 
   res_width = width;
   res_height = height;

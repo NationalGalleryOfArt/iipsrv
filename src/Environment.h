@@ -44,7 +44,7 @@
 #define BASE_URL "";
 #define CACHE_CONTROL "max-age=86400"; // 24 hours
 #define ALLOW_UPSCALING true
-#define OVERSAMPLING_FACTOR 1; // no oversampling is default
+#define OVERSAMPLING_FACTOR 1.0; // no oversampling is default
 #define NO_FILTER_DEFINED -999;
 #define RETAIN_SOURCE_ICC_PROFILE 0
 #define IIIF_PREFIX ""; // e.g. /iiif
@@ -321,14 +321,14 @@ class Environment {
     return allow_upscaling;
   }
 
-  static int getOversamplingFactor(){
-    int os = OVERSAMPLING_FACTOR;
+  static float getOversamplingFactor(){
+    float os = OVERSAMPLING_FACTOR;
     char *envpara = getenv( "OVERSAMPLING_FACTOR" );
     if( envpara ){
-      os = atoi( envpara );
+      os = atof( envpara );
       // If not a realistic oversampling factor, set to default
       if( os < 1 ) os = 1;
-      if( os > 4 ) os = 4;
+      if( os > 2 ) os = 2;
     }
     return os;
   }

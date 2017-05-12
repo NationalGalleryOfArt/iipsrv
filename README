@@ -249,11 +249,11 @@ other image formats. This is only necessary if you have activated
 --enable-modules for ./configure and written your own image format 
 handler(s).
 
-OVERSAMPLING_FACTOR: Forces the resize operation to request a source tile N times
-larger than would otherwise be requested prior to performing resize operations.
-Permitted values are 1,2,3 and 4. This factor is useful if very high quality resized 
-tiles are desired since it provides more pixel samples to the resize operation.  
-It also ensures continuous quality is achieved by the resize operation since the
+OVERSAMPLING_FACTOR: Forces resize operations to request a source tile at least f times
+larger than the dimensions requested for output. Permitted values are rational numbers
+between 1 and 2. This factor is useful if high quality resizing is desired since it 
+provides more pixel samples to the resize operation.  It also ensures continuous 
+quality is achieved by the resize operation since any value > 1.0 will negate the 
 optimization of returning source tiles directly from the source image in the special
 case where the requested size matches up perfectly with a tile in the source image
 is skipped altogether.

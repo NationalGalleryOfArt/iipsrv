@@ -87,7 +87,7 @@ struct Session {
   imageCacheMapType *imageCache;
   Cache* tileCache;
 
-  int oversamplingFactor;
+  float oversamplingFactor;
 
 #ifdef DEBUG
   FileWriter* out;

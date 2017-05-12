@@ -290,9 +290,9 @@ int main( int argc, char *argv[] )
   // Get the allow upscaling setting
   bool allow_upscaling = Environment::getAllowUpscaling();
 
-  // Get the oversampling factor which will result in requesting a tile 
-  // N times larger than would otherwise be requested prior to resize operations
-  int oversamplingFactor = Environment::getOversamplingFactor();
+  // Get the oversampling factor f which will result in requesting a tile 
+  // at least f times larger than the requested output dimensions
+  float oversamplingFactor = Environment::getOversamplingFactor();
 
 #ifdef HAVE_PNG
   // Get PNG Compression Level

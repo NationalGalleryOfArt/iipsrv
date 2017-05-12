@@ -161,7 +161,7 @@ class View{
 
   /// Return the requested resolution
   /* @return requested resolution level */
-  unsigned int getResolution();
+  unsigned int getResolution( float oversamplingFactor );
 
 
   /// Return the scaling required in case our requested width or height is in between available resolutions
