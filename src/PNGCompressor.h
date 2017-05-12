@@ -70,6 +70,8 @@ private:
     dest.size = 0;
   }
 
+  void write_icc_profile(unsigned char *icc_profile_buf, unsigned int icc_profile_len);
+
 public:
 
   /// Constructor

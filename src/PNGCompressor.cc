@@ -127,6 +127,8 @@ void PNGCompressor::InitCompression( const RawTile& rawtile, unsigned int strip_
     PNG_FILTER_TYPE_BASE 
   );
 
+  write_icc_profile(icc_profile_buf, icc_profile_len);
+
   // Write the header information at this point
   png_write_info(dest.png_ptr, dest.info_ptr);
 
@@ -240,6 +242,10 @@ int PNGCompressor::Compress( RawTile& rawtile, unsigned long icc_profile_len, un
   png_set_compression_level( dest.png_ptr, Z_NO_COMPRESSION );
   png_set_filter(dest.png_ptr, NULL, PNG_NO_FILTERS);
 
+  // see: http://www.libpng.org/pub/png/libpng-1.2.5-manual.html 
+  if ( icc_profile_buf != NULL )
+    png_set_iCCP(dest.png_ptr, dest.info_ptr, 0, PNG_COMPRESSION_TYPE_BASE, icc_profile_buf, icc_profile_len);
+
   // Write the file header information
   png_write_info( dest.png_ptr, dest.info_ptr );
 
@@ -346,8 +352,6 @@ void PNGCompressor::addXMPMetadata( const string& xmp_metadata ){
 }
 
 /********************************************************************************************************************
-void PNGCompressor.writeICCProfile(...) {
-
 From: http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html#C.iCCP
 4.2.2.4. iCCP Embedded ICC profile
 
@@ -370,4 +374,10 @@ A file should contain at most one embedded profile, whether explicit like iCCP o
 If the iCCP chunk appears, it must precede the first IDAT chunk, and it must also precede the PLTE chunk if present.
 }
 ********************************************************************************************************************/
+void PNGCompressor::write_icc_profile(unsigned char *icc_profile_buf, unsigned int icc_profile_len) {
+    if ( icc_profile_buf != NULL )  {
+        string profName = "icc";
+        png_set_iCCP(dest.png_ptr, dest.info_ptr, (char *) profName.c_str(), PNG_COMPRESSION_TYPE_BASE, (char *) icc_profile_buf, icc_profile_len);
+    } 
+}
 
