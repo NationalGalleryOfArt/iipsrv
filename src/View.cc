@@ -29,10 +29,6 @@ using namespace std;
 void View::calculateResolution( unsigned int dimension,
 				unsigned int requested_size ) {
 
-logfile  << "dimension:" << dimension << endl;
-logfile  << "max_resolutions:" << max_resolutions << endl;
-logfile  << "requested_size:" << requested_size << endl;
-
   unsigned int j = 1;
   unsigned int d = dimension;
 
@@ -45,12 +41,6 @@ logfile  << "requested_size:" << requested_size << endl;
     j++;
   }
 
-logfile  << "max_resolutions:" << max_resolutions << endl;
-logfile  << "requested_size:" << requested_size << endl;
-logfile  << "d:" << d << endl;
-logfile  << "rs:" << rs << endl;
-logfile  << "j:" << j << endl;
-
   // Limit j to the maximum resolution
   if( j > max_resolutions+1 ) j = max_resolutions + 1;
 
@@ -61,8 +51,6 @@ logfile  << "j:" << j << endl;
   // Make sure our value is possible
   if( resolution > (signed int)(max_resolutions-1) ) resolution = max_resolutions - 1;
   if( resolution < 0 ) resolution = 0;
-
-logfile  << "j:" << j << endl;
 
 }
 
