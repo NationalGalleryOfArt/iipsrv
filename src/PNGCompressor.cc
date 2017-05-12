@@ -26,14 +26,6 @@
 static void png_write_data(png_structp png_ptr, png_bytep payload, png_size_t length)
 {
 
-  /* some debugging code that spits the png out to a file
-  //ofstream ofs;
-  //ofs.open ("/tmp/test.png", ofstream::out | ofstream::binary | ofstream::app);
-  //ofs.write((const char*) payload, length);
-  //ofs.close();
-  // logfile << "png_write_data called with " << length << " bytes to write to mem location" << &payload << endl;
-  */
-
   png_destination_ptr dest = (png_destination_ptr) (png_get_io_ptr(png_ptr));
 
   if ( dest->size + length > dest->mx ) {
@@ -62,11 +54,6 @@ png_cexcept_error(png_structp png_ptr, png_const_charp msg)
 
 void PNGCompressor::InitCompression( const RawTile& rawtile, unsigned int strip_height, unsigned long icc_profile_len, unsigned char *icc_profile_buf ) throw (string)
 {
-
-  ofstream ofs;
-  // create an empty test file first
-  ofs.open ("/tmp/test.png", ofstream::out | ofstream::binary );
-  ofs.close();
 
   // Set up the correct width and height for this particular tile
   width = rawtile.width;
