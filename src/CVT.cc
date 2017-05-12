@@ -53,9 +53,6 @@ void CVT::send( Session* session ){
   unsigned int im_width = (*session->image)->getImageWidth(); // / session->oversamplingFactor;
   unsigned int im_height = (*session->image)->getImageHeight(); // / session->oversamplingFactor;
 
-logfile << "im_width,im_height: " << im_width << "," << im_height << endl;
-//logfile << "im_width/factor,im_height/factor: " << im_width / session->oversamplingFactor << "," << im_height / session->oversamplingFactor << endl;
-
   int num_res = (*session->image)->getNumResolutions();
 
   // Setup our view with some basic info
@@ -301,11 +298,13 @@ logfile << "im_width,im_height: " << im_width << "," << im_height << endl;
      case 2:
       interpolation_type = "Lanczos approximation";
       filter_interpolate_lanczos( complete_image, resampled_width, resampled_height );
+      break;
      default:
       interpolation_type = "bilinear";
       filter_interpolate_bilinear( complete_image, resampled_width, resampled_height );
       break;
     }
+
 
     if( session->loglevel >= 5 ){
       *(session->logfile) << "CVT :: Resizing using " << interpolation_type << " interpolation in "
@@ -381,6 +380,7 @@ logfile << "im_width,im_height: " << im_width << "," << im_height << endl;
 			  << function_timer.getTime() << " microseconds" << endl;
     }
   }
+
 
   unsigned long iccLen=0;
   unsigned char *iccBuf=NULL;
