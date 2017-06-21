@@ -543,8 +543,7 @@ int main( int argc, char *argv[] )
 #endif
 
       string request_string = (header!=NULL)? header : "";
-      if( request_string.empty() ){
-        /*****************************************************************************************************************
+      /*****************************************************************************************************************
          if we don't have a query string, check for a match to the IIIF prefix before giving up
          this prevents having to configure a mod_rewrite and / or mod_proxy configuration to handle native IIIF URLs
          and it's important on heavily loaded servers for two reasons:
@@ -555,24 +554,33 @@ int main( int argc, char *argv[] )
              useless as a query string - other trickery might work to unescape this on the subsequent request but that is
              starting to become quite complex when all we really want is to handle a IIIF URL according to the spec - thus
              this enhancement...
-        ******************************************************************************************************************/
-        if ( !iiif_prefix.empty() ) {
-          char *requri = FCGX_GetParam( "REQUEST_URI", request.envp );
-          const string request_uri = (requri!=NULL) ? requri : "";
+      ******************************************************************************************************************/
+      if ( !iiif_prefix.empty() ) {
 
-          // try to find the iiif_prefix in the request uri
-          unsigned int loc = request_uri.find(iiif_prefix);
-          if ( loc == 0 ) {
-            // this is indeed a IIIF request
-            unsigned iLen = iiif_prefix.length();
-            unsigned rLen = request_uri.length();
-            string new_request_string = "IIIF=" + request_uri.substr(iLen,rLen-iLen);
-            request_string = new_request_string;
-            if (loglevel > 3)
-              logfile << "SYNTHESIZED QUERY STRING:" << request_string;
-          }
+        char *requri = FCGX_GetParam( "REQUEST_URI", request.envp );
+        const string request_uri = (requri!=NULL) ? requri : "";
+
+        unsigned int rLen = request_uri.length();
+        unsigned int qLen = 0;
+
+        // if a query string is present with a IIIF prefix, we need to ignore it from our request rather than process it
+        if ( !request_string.empty() ) {
+          qLen = request_uri.find("?");
+          qLen = rLen - qLen;
+        }
+
+        // try to find the iiif_prefix in the request uri
+        unsigned int loc = request_uri.find(iiif_prefix);
+        if ( loc == 0 ) {
+          // this is indeed a IIIF request
+          unsigned iLen = iiif_prefix.length();
+          string new_request_string = "IIIF=" + request_uri.substr(iLen,rLen-iLen-qLen);
+          request_string = new_request_string;
         }
       }
+
+      if (loglevel > 1)
+        logfile << "SYNTHESIZED QUERY STRING:" << request_string << endl;
 
       // Check that we actually have a request string
       if( request_string.empty() ){
