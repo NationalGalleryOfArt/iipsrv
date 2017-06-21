@@ -27,6 +27,7 @@
 #include "Tokenizer.h"
 #include "Transforms.h"
 #include "URL.h"
+#include "sys/stat.h"
 
 #if _MSC_VER
 #include "../windows/Time.h"
@@ -65,6 +66,34 @@ void IIIF::run( Session* session, const string& src )
     if ( session->loglevel >= 5 ){
       *(session->logfile) << "IIIF :: URL decoded to " << argument << endl;
     }
+  }
+
+  // if URL points to a file that we have access to, redirect to the info.json service for that file 
+    // Get our image pattern variable
+  string filecheck = Environment::getFileSystemPrefix() + argument;
+  struct stat buffer;
+  if ( stat (filecheck.c_str(), &buffer) == 0) {
+    // No parameters, so redirect to info request
+    string id;
+    string host = session->headers["BASE_URL"];
+    if ( host.length() > 0 ){
+      id = host + (session->headers["QUERY_STRING"]).substr(5, string::npos);
+    }
+    else{
+      string request_uri = session->headers["REQUEST_URI"];
+      request_uri.erase( request_uri.length() - suffix.length(), string::npos );
+      id = "http://" + session->headers["HTTP_HOST"] + request_uri;
+    }
+    string header = string( "Status: 303 See Other\r\n" )
+                    + "Location: " + id + "/info.json\r\n"
+                    + "Server: iipsrv/" + VERSION + "\r\n"
+                    + "\r\n";
+    session->out->printf( (const char*) header.c_str() );
+    session->response->setImageSent();
+    if ( session->loglevel >= 2 ){
+      *(session->logfile) << "IIIF :: Sending HTTP 303 See Other : " << id + "/info.json" << endl;
+    }
+    return;
   }
 
   // Check if there is slash in argument and if it is not last / first character, extract identifier and suffix
@@ -538,7 +567,7 @@ void IIIF::run( Session* session, const string& src )
   }
 
   // Get most suitable resolution and recalculate width and height of region in this resolution
-  int requested_res = session->view->getResolution(session->oversamplingFactor);
+  int requested_res = session->view->getResolution(1.0);
 
   unsigned int im_width = (*session->image)->image_widths[numResolutions - requested_res - 1];
   unsigned int im_height = (*session->image)->image_heights[numResolutions - requested_res - 1];
