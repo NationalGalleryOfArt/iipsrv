@@ -227,7 +227,6 @@ void JPEGCompressor::InitCompression( const RawTile& rawtile, unsigned int strip
    for future support of JPEGs (progresive) and PNGs (interlaced) - @beaudet
    jpeg_simple_progression( &cinfo );
   *************************************************************************/
-  jpeg_simple_progression( &cinfo );
 
   jpeg_start_compress( &cinfo, TRUE );
 
@@ -396,7 +395,6 @@ int JPEGCompressor::Compress( RawTile& rawtile, unsigned long icc_profile_len, u
    for future support of JPEGs (progresive) and PNGs (interlaced) - @beaudet
    jpeg_simple_progression( &cinfo );
   *************************************************************************/
-  jpeg_simple_progression( &cinfo );
 
   jpeg_start_compress( &cinfo, TRUE );
 

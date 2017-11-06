@@ -110,7 +110,6 @@ void PNGCompressor::InitCompression( const RawTile& rawtile, unsigned int strip_
     ciBitDepth,
     ( (channels<3) ? ( (channels==2) ? PNG_COLOR_TYPE_GRAY_ALPHA : PNG_COLOR_TYPE_GRAY): ( (channels==4) ? PNG_COLOR_TYPE_RGB_ALPHA : PNG_COLOR_TYPE_RGB)), 
     PNG_INTERLACE_NONE, 
-    //PNG_INTERLACE_ADAM7,  - currently results in a corrupted PNG so disabling for now
     PNG_COMPRESSION_TYPE_BASE, 
     PNG_FILTER_TYPE_BASE 
   );
