@@ -95,7 +95,7 @@ class DSOImage : public IIPImage{
   void Load( const std::string& p ) throw (std::string);
 
   /// Overloaded function to open and read the image
-  void openImage() throw (std::string);
+  void openImage(int maxRes) throw (std::string);
 
   /// Overloaded function to close the image
   void closeImage() throw (std::string);

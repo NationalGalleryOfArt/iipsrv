@@ -52,6 +52,8 @@ class View{
   unsigned int res_width, res_height;         /// Width and height at requested resolution
   unsigned int min_size;                      /// Minimum viewport dimension
   unsigned int max_size;                      /// Maximum viewport dimension
+  unsigned int max_sample_size;               /// Maximum resolution to be used for a particular 
+                                              /// image request to prevent unauthorized access as necessary
   unsigned int requested_width;               /// Width requested by WID command
   unsigned int requested_height;              /// Height requested by HEI command
   float contrast;                             /// Contrast adjustment requested by CNT command
@@ -91,7 +93,7 @@ class View{
     resolution = 0; max_resolutions = 0;
     width = 0; height = 0;
     res_width = 0; res_height = 0;
-    min_size = 1; max_size = 0;
+    min_size = 1; max_size = 0; max_sample_size = 0;
     requested_width = 0; requested_height = 0;
     contrast = 1.0; gamma = 1.0;
     xangle = 0; yangle = 90;
@@ -114,10 +116,18 @@ class View{
   /** @param m maximum viewport dimension */
   void setMaxSize( unsigned int m ){ max_size = m; };
 
-
   /// Get the maximum allowed output size
   /* @return maximum output dimension */
   unsigned int getMaxSize(){ return max_size; };
+
+  /// Set the maximum tile size for the request
+  /// Limits the size of tile that will be used for producing a sample to be <= maxsamplingsize
+  /** @param m maximum sampling size to be used for the request */
+  void setMaxSampleSize( unsigned int m ){ max_sample_size = m; };
+
+  /// Get the maximum sampling size to be used when reading tiles
+  /* @return maximum sampling size */
+  unsigned int getMaxSampleSize(){ return max_sample_size; };
   
 
   /// Set the allow_upscaling flag

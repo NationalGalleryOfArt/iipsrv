@@ -225,7 +225,7 @@ DISABLE_PRIMARY_MEMCACHE: Defaults to 0. Set to 1 to disable the primary memcach
 to cache responses in order to diagnose problems or to run targeted performance tests. This 
 will not disable the image tile cache if MAX_IMAGE_CACHE_SIZE is set to 0. To disable ALL
 memcache, remove the MEMCACHED_SERVERS configuration and set the MAX_IMAGE_CACHE_SIZE 
-and MAX_IMAGES_IN_METADATA_CACHE to 0 as well as disabling other caching layers that
+and MAX_HEADERS_IN_METADATA_CACHE to 0 as well as disabling other caching layers that
 are external to IIP such as varnish, squid, etc.
 
 INTERPOLATION: Interpolation method to use for rescaling when using image export.
@@ -283,6 +283,19 @@ ScriptAlias (or equivalent) directive to force resolution of the IIIF_PREFIX
 to the IIP FCGI path, e.g. ScriptAlias /iiif /var/www/fastcgi/iipsrv.fcgi
 This configuration option enables you to directly handle IIIF URLs without
 having to rewrite or proxy them to use a query string. Defaults to "".
+
+MAX_SAMPLE_SIZE: Defaults to zero which means disabled.  If set, this setting will
+cause the Image resampling algorithm to use source bits that are at most as large
+as the value set by this parameter.  If MAX_SAMPLE_SIZE is passed as an HTTP
+HTTP header, it will override for MAX_SAMPLE_SIZE set in the configuration file on
+a per-request basis. This enables a proxy sitting in front of IIP to intercept all
+requests for images to first check permissions and rights restrictions and to 
+artificially limit the quality of the images in cases where restrictions exist. See
+also the IIIF Auth API which is related to this concept, but works at the client
+viewer level rather than directly at the Image API level with the notable exception
+of the info.json file.  In the future, it might make sense to develop a pluggable
+extension mechanism into IIP so it can perform the image permission lookups directly
+rather than having to go through a proxy. 
 
 
 IMAGE PATHS

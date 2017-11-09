@@ -62,7 +62,7 @@ static void info_callback(const char* msg, void* /*client_data*/)
 /************************************************************************/
 // Opens file with image and calls loadImageInfo()
 
-void OpenJPEGImage::openImage() throw(file_error)
+void OpenJPEGImage::openImage(int maxSampleSize) throw(file_error)
 {
 #ifdef DEBUG
   Timer timer;
@@ -71,11 +71,13 @@ void OpenJPEGImage::openImage() throw(file_error)
           << flush;
 #endif
 
+  this->maxSampleSize = maxSampleSize;
+
   std::string filename = getFileName(currentX, currentY);
   // Check if our image has been modified.
   updateTimestamp(filename);
 
-  loadImageInfo(currentX, currentY);
+  loadImageInfo(currentX, currentY );
   isSet = true; // Image is opened and info is set
 
 #ifdef DEBUG
@@ -107,7 +109,7 @@ void OpenJPEGImage::closeImage()
 /************************************************************************/
 // Saves important image information to IIPImage and OpenJPEGImage variables
 
-void OpenJPEGImage::loadImageInfo(int /*seq*/, int /*ang*/) throw(file_error)
+void OpenJPEGImage::loadImageInfo(int /*seq*/, int /*ang*/ ) throw(file_error)
 {
 #ifdef DEBUG
   Timer timer;
@@ -256,7 +258,7 @@ void OpenJPEGImage::loadImageInfo(int /*seq*/, int /*ang*/) throw(file_error)
 // Get one individual tile from the opened picture
 
 RawTile OpenJPEGImage::getTile(int seq, int ang, unsigned int res, int layers,
-                               unsigned int tile) throw(file_error)
+                               unsigned int tile ) throw(file_error)
 {
 #ifdef DEBUG
   Timer timer;

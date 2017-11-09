@@ -298,6 +298,12 @@ class INV : public Task {
   void run( Session* session, const std::string& argument );
 };
 
+/// MRES
+class MRES : public Task {
+ public:
+  void run( Session* session, const std::string& argument );
+};
+
 /// Zoomify Request Command
 class Zoomify : public Task {
  public:

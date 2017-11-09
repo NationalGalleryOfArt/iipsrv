@@ -20,6 +20,7 @@
 
 
 #include <algorithm>
+#include <sstream>
 #include "Task.h"
 #include "URL.h"
 #include "Environment.h"
@@ -78,11 +79,17 @@ void FIF::run( Session* session, const string& src ){
   // Put the image setup into a try block as object creation can throw an exception
   try {
 
+    // an image cache key is necessary in order to differentiate a regular image load from one 
+    // that is being rendered with degraded sampling due to rights restrictions
+    ostringstream ss;
+    ss << argument << "__" << session->view->getMaxSampleSize();
+    string imageCacheKey = ss.str();
+
     IIPImage *test;
     // first thing we do is look in cache for the image
-    if ( max_headers_in_metadata_cache > 0 && session->imageCache->find(argument) != session->imageCache->end() ) {
+    if ( max_headers_in_metadata_cache > 0 && session->imageCache->find(imageCacheKey) != session->imageCache->end() ) {
       // get the cached image
-      test = (*session->imageCache)[ argument ];
+      test = (*session->imageCache)[ imageCacheKey ];
       timestamp = test->timestamp;       // Record timestamp if we have a cached image
       if ( session->loglevel >= 2 ) 
         *(session->logfile) << "FIF :: Image cache hit. Number of elements: " << session->imageCache->size() << endl;
@@ -175,7 +182,7 @@ void FIF::run( Session* session, const string& src ){
     */
 
     // Open image and update timestamp - will also update metadata if necessary
-    (*session->image)->openImage();
+    (*session->image)->openImage(session->view->getMaxSampleSize());
     
     // Check timestamp consistency. If cached timestamp is older, update metadata
     if( timestamp>0 && (timestamp < (*session->image)->timestamp) ){
@@ -205,7 +212,7 @@ void FIF::run( Session* session, const string& src ){
     // Add a copy of this image to cache since we want tiff and tiffbuff to be null as well as
     // to be able to dispose of the session image between sessions;
     if ( max_headers_in_metadata_cache > 0 )
-      (*session->imageCache)[argument] = new IIPImage( *(*session->image) );
+      (*session->imageCache)[imageCacheKey] = new IIPImage( *(*session->image) );
 
   }
   catch( const file_error& error ){

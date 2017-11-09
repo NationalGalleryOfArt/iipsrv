@@ -28,13 +28,16 @@
 using namespace std;
 
 
-void TPTImage::openImage() throw (file_error)
+void TPTImage::openImage(int maxSampleSize) throw (file_error)
 {
 
   // Insist that the tiff and tile_buf be NULL
   if( tiff || tile_buf ){
     throw file_error( "TPT::openImage: tiff or tile_buf is not NULL" );
   }
+
+  // set max resolution permitted for this image - any res > maxSampleSize will be skipped
+  this->maxSampleSize = maxSampleSize;
 
   string filename = getFileName( currentX, currentY );
 
@@ -106,20 +109,37 @@ void TPTImage::loadImageInfo( int seq, int ang ) throw(file_error)
   current_dir = TIFFCurrentDirectory( tiff );
   TIFFSetDirectory( tiff, 0 );
 
-  // Store the list of image dimensions available
-  image_widths.push_back( w );
-  image_heights.push_back( h );
-
-  for( count = 0; TIFFReadDirectory( tiff ); count++ ){
-    TIFFGetField( tiff, TIFFTAG_IMAGEWIDTH, &w );
-    TIFFGetField( tiff, TIFFTAG_IMAGELENGTH, &h );
+  // Store the list of image dimensions available, starting with the full res at index 0
+  numResolutions = 0;
+  skippedResolutions = 0;
+  if ( maxSampleSize <= 0 || ( w <= maxSampleSize && h <= maxSampleSize ) ) {
     image_widths.push_back( w );
     image_heights.push_back( h );
+    numResolutions++;
+  }
+  else
+    skippedResolutions++;
+
+  while ( TIFFReadDirectory( tiff ) ) {
+    TIFFGetField( tiff, TIFFTAG_IMAGEWIDTH, &w );
+    TIFFGetField( tiff, TIFFTAG_IMAGELENGTH, &h );
+    if ( maxSampleSize <= 0 || ( w <= maxSampleSize && h <= maxSampleSize ) ) {
+      image_widths.push_back( w );
+      image_heights.push_back( h );
+      numResolutions++;
+    }
+    else 
+        skippedResolutions++;
+  }
+  // if we don't have any samples small enough to meet the maxSampleSize criteria, then sample from the smallest we actually have
+  if ( numResolutions == 0 ) {
+    image_widths.push_back( w );
+    image_heights.push_back( h );
+    numResolutions = 1;
+    skippedResolutions--;
   }
   // Reset the TIFF directory
   TIFFSetDirectory( tiff, current_dir );
-
-  numResolutions = count+1;
 
   // Handle various colour spaces
   if( colour == PHOTOMETRIC_CIELAB ) colourspace = CIELAB;
@@ -207,7 +227,6 @@ RawTile TPTImage::getTile( int seq, int ang, unsigned int res, int layers, unsig
   uint16 colour;
   string filename;
 
-
   // Check the resolution exists
   if( res > numResolutions ){
     ostringstream error;
@@ -241,10 +260,11 @@ RawTile TPTImage::getTile( int seq, int ang, unsigned int res, int layers, unsig
   // The first resolution is the highest, so we need to invert 
   //  the resolution - can avoid this if we store our images with
   //  the smallest image first. 
-  int vipsres = ( numResolutions - 1 ) - res;
+  int vipsres = ( numResolutions + skippedResolutions - 1 ) - res;
   
 
-  // Change to the right directory for the resolution
+  // Change to the right directory for the resolution, factoring in that we might have
+  // skipped resolutions that were of too high resolution for a particular request
   if( !TIFFSetDirectory( tiff, vipsres ) ) {
     throw file_error( "TIFFSetDirectory failed" );
   }

@@ -452,7 +452,6 @@ RawTile TileManager::getRegion( unsigned int res, int seq, int ang, int layers, 
 	}
       }
 
-
       // Copy our tile data into the appropriate part of the strip memory
       // one whole tile width at a time
       for( unsigned int k=0; k<dst_tile_height; k++ ){

@@ -64,6 +64,7 @@ Task* Task::factory( const string& t ){
   else if( type == "deepzoom" ) return new DeepZoom;
   else if( type == "ctw" ) return new CTW;
   else if( type == "iiif" ) return new IIIF;
+  else if( type == "mres" ) return new MRES;
   else return NULL;
 
 }
@@ -399,6 +400,15 @@ void INV::run( Session* session, const string& argument ){
   if( session->loglevel >= 2 ) *(session->logfile) << "INV handler reached" << endl;
   session->view->inverted = true;
 }
+
+// maximum resolution
+void MRES::run( Session* session, const string& argument ){
+  // Does not take an argument
+  if( session->loglevel >= 2 ) *(session->logfile) << "MRES handler reached" << endl;
+  // we don't do anything here because we don't want max resolution overridden with query string arguments
+  // instead, it's read from HTTP headers only and relies on a proxy to enforce it
+}
+
 
 
 void LYR::run( Session* session, const string& argument ){

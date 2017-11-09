@@ -82,7 +82,7 @@ class TPTImage : public IIPImage {
   ~TPTImage() { closeImage(); };
 
   /// Overloaded function for opening a TIFF image
-  void openImage() throw (file_error);
+  void openImage(int maxRes ) throw (file_error);
 
   /// Overloaded function for loading TIFF image information
   /** @param x horizontal sequence angle

@@ -58,8 +58,12 @@ unsigned int get_nprocs_conf(){
 using namespace std;
 
 
-void KakaduImage::openImage() throw (file_error)
+void KakaduImage::openImage(int maxSampleSize) throw (file_error)
 {
+
+  // set max resolution permitted -- TODO: implement this
+  this->maxSampleSize = maxSampleSize;
+
   string filename = getFileName( currentX, currentY );
 
   // Update our timestamp

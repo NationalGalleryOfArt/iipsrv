@@ -227,6 +227,12 @@ void JPEGCompressor::InitCompression( const RawTile& rawtile, unsigned int strip
    for future support of JPEGs (progresive) and PNGs (interlaced) - @beaudet
    jpeg_simple_progression( &cinfo );
   *************************************************************************/
+  // enable progressive jpeg support but only if the requested width and height
+  // are relatively small - there's a bug in the progressive jpeg script that
+  // causes a segfault when requesting images that are larger than a certain
+  // size
+  //if ( width <= 1024 && height <= 1024 )
+  //  jpeg_simple_progression( &cinfo );
 
   jpeg_start_compress( &cinfo, TRUE );
 

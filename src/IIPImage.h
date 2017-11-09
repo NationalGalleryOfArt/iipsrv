@@ -118,6 +118,13 @@ class IIPImage {
   /// The number of available resolutions in this image
   unsigned int numResolutions;
 
+  // The number of skipped resolutions due to rights restrictions
+  unsigned int skippedResolutions;
+
+  // The maximum dimension (width or height in pixels) permitted for any resolution level; any resolution greater than this will be skipped at load time
+  // This feature can be used to enforce rights restrictions that might exist on images
+  unsigned int maxSampleSize;
+
   /// The bits per channel for this image
   unsigned int bpc;
 
@@ -160,6 +167,8 @@ class IIPImage {
     tile_height( 0 ),
     colourspace( NONE ),
     numResolutions( 0 ),
+    skippedResolutions( 0 ),
+    maxSampleSize( 0 ),
     bpc( 0 ),
     channels( 0 ),
     sampleType( FIXEDPOINT ),
@@ -184,6 +193,8 @@ class IIPImage {
     tile_height( 0 ),
     colourspace( NONE ),
     numResolutions( 0 ),
+    skippedResolutions( 0 ),
+    maxSampleSize( 0 ),
     bpc( 0 ),
     channels( 0 ),
     sampleType( FIXEDPOINT ),
@@ -216,6 +227,8 @@ class IIPImage {
     tile_height( image.tile_height ),
     colourspace( image.colourspace ),
     numResolutions( image.numResolutions ),
+    skippedResolutions( image.skippedResolutions ),
+    maxSampleSize( image.maxSampleSize ),
     bpc( image.bpc ),
     channels( image.channels ),
     sampleType( image.sampleType ),
@@ -293,6 +306,9 @@ class IIPImage {
   /// Return the number of available resolutions in the image
   unsigned int getNumResolutions() { return numResolutions; };
 
+  /// Return the number of available resolutions in the image
+  unsigned int getSkippedResolutions() { return skippedResolutions; };
+
   /// Return the number of bits per pixel for this image
   unsigned int getNumBitsPerPixel() { return bpc; };
 
@@ -350,7 +366,7 @@ class IIPImage {
   virtual const std::string getDescription() { return std::string( "IIPImage Base Class" ); };
 
   /// Open the image: Overloaded by child class.
-  virtual void openImage() { throw file_error( "IIPImage openImage called" ); };
+  virtual void openImage(int maxRes) { throw file_error( "IIPImage openImage called" ); };
 
   /// Load information about the image eg. number of channels, tile size etc.
   /** @param x horizontal sequence angle

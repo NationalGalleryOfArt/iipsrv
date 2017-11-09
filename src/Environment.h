@@ -31,6 +31,7 @@
 #define FILENAME_PATTERN "_pyr_"
 #define JPEG_QUALITY 75
 #define MAX_CVT 5000
+#define MAX_SAMPLE_SIZE 0
 #define MAX_LAYERS 0
 #define FILESYSTEM_PREFIX ""
 #define WATERMARK ""
@@ -177,6 +178,18 @@ class Environment {
     else max_CVT = MAX_CVT;
 
     return max_CVT;
+  }
+
+  static int getMaxSampleSize(){
+    char* envpara = getenv( "MAX_SAMPLE_SIZE" );
+    int max_sample_size;
+    if( envpara ){
+      max_sample_size = atoi( envpara );
+      if ( max_sample_size < 0 ) max_sample_size = 0;
+    }
+    else max_sample_size = MAX_SAMPLE_SIZE;
+
+    return max_sample_size;
   }
 
 

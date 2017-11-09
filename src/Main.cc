@@ -28,6 +28,7 @@
 #include <csignal>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <map>
@@ -259,7 +260,6 @@ int main( int argc, char *argv[] )
   // Get our max CVT size
   int max_CVT = Environment::getMaxCVT();
 
-
   // Get the default number of quality layers to decode
   int max_layers = Environment::getMaxLayers();
 
@@ -308,7 +308,7 @@ int main( int argc, char *argv[] )
     logfile << "Setting maximum headers in image metadata cache to " << max_headers_in_metadata_cache << " images" << endl;
     logfile << "Setting filesystem prefix to '" << filesystem_prefix << "'" << endl;
     logfile << "Setting default JPEG quality to " << jpeg_quality << endl;
-    logfile << "Setting maximum CVT size to " << max_CVT << endl;
+    logfile << "Setting default maximum CVT size to " << max_CVT << endl;
     logfile << "Setting HTTP Cache-Control header to '" << cache_control << "'" << endl;
     logfile << "Setting 3D file sequence name pattern to '" << filename_pattern << "'" << endl;
     if( !cors.empty() ) logfile << "Setting Cross Origin Resource Sharing to '" << cors << "'" << endl;
@@ -492,9 +492,28 @@ int main( int argc, char *argv[] )
     View view;
     if( max_CVT != -1 ) view.setMaxSize( max_CVT );
     if( max_layers != 0 ) view.setMaxLayers( max_layers );
+    // Get our max sampling size from the environment
     view.setAllowUpscaling( allow_upscaling );
 
 
+    if (loglevel > 3) {
+      char **envp = request.envp;
+      for ( ; *envp; ++envp) {
+        logfile << "ENV DUMP:" << *envp << endl;
+      }
+    }
+
+    // if MaxSamplingSize HTTP header is present, use it to override the default
+    int max_sample_size = Environment::getMaxSampleSize();
+    char* header = NULL;
+    if ( (header = FCGX_GetParam("HTTP_MAX_SAMPLE_SIZE", request.envp)) )
+      max_sample_size = atoi( header );
+
+    if ( max_sample_size != 0 ) {
+      if (loglevel > 2) 
+        logfile << "Setting max sample size: " << max_sample_size << endl;
+      view.setMaxSampleSize( max_sample_size );
+    }
 
     // Create an IIPResponse object - we use this for the OBJ requests.
     // As the commands return images etc, they handle their own responses.
@@ -532,8 +551,6 @@ int main( int argc, char *argv[] )
       //  profile in the session...
       //  session.system_icc_profile_len = ...
       //  session.system_icc_profile_buf = ...
-
-      char* header = NULL;
 
       // Get the query into a string
 #ifdef DEBUG
@@ -577,6 +594,13 @@ int main( int argc, char *argv[] )
           string new_request_string = "IIIF=" + request_uri.substr(iLen,rLen-iLen-qLen);
           request_string = new_request_string;
         }
+      }
+
+      // add the Max Resolution HTTP header as a query param so caching of the response works properly
+      if (max_sample_size > 0) {
+        ostringstream ss;
+        ss << request_string << "&MRES=" << max_sample_size;
+        request_string = ss.str();
       }
 
       if (loglevel > 1)

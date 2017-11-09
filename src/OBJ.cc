@@ -100,7 +100,6 @@ void OBJ::run( Session* s, const std::string& a )
     metadata( argument );
   }
 
-
   // None of the above!
   else{
 

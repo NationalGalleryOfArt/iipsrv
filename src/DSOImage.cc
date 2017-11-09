@@ -142,9 +142,11 @@ string DSOImage::getError()
 // Open the image specified by path and get the image and tile
 //  widths and heights
 
-void DSOImage::openImage() throw (string)
+void DSOImage::openImage(int maxSampleSize ) throw (string)
 {
   loadLibrary();
+
+  this->maxSampleSize = maxSampleSize;
 
   string path = getFileName( currentX, 90 );
 
