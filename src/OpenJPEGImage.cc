@@ -16,8 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-//#define DEBUG 1
-
+#include <debug.h>
 #include "OpenJPEGImage.h"
 
 #include <sstream>

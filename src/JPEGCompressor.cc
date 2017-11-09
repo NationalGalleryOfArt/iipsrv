@@ -20,8 +20,195 @@
 
 
 #include "JPEGCompressor.h"
+#include "jpeglib.h"
+
+#define SIZEOF(object)  ((size_t) sizeof(object))
+#define MEMCOPY(dest,src,size)  memcpy((void *)(dest), (const void *)(src), (size_t)(size))
 
 #define MX 32768
+
+LOCAL(int)
+text_getc (FILE * file)
+/* Read next char, skipping over any comments (# to end of line) */
+/* A comment/newline sequence is returned as a newline */
+{
+  register int ch;
+
+  ch = getc(file);
+  if (ch == '#') {
+    do {
+      ch = getc(file);
+    } while (ch != '\n' && ch != EOF);
+  }
+  return ch;
+}
+
+
+LOCAL(boolean)
+read_text_integer (FILE * file, long * result, int * termchar)
+/* Read an unsigned decimal integer from a file, store it in result */
+/* Reads one trailing character after the integer; returns it in termchar */
+{
+  register int ch;
+  register long val;
+
+  /* Skip any leading whitespace, detect EOF */
+  do {
+    ch = text_getc(file);
+    if (ch == EOF) {
+      *termchar = ch;
+      return FALSE;
+    }
+  } while (isspace(ch));
+
+  if (! isdigit(ch)) {
+    *termchar = ch;
+    return FALSE;
+  }
+
+  val = ch - '0';
+  while ((ch = text_getc(file)) != EOF) {
+    if (! isdigit(ch))
+      break;
+    val *= 10;
+    val += ch - '0';
+  }
+  *result = val;
+  *termchar = ch;
+  return TRUE;
+}
+
+LOCAL(boolean)
+read_scan_integer (FILE * file, long * result, int * termchar)
+/* Variant of read_text_integer that always looks for a non-space termchar;
+ * this simplifies parsing of punctuation in scan scripts.
+ */
+{
+  register int ch;
+
+  if (! read_text_integer(file, result, termchar))
+    return FALSE;
+  ch = *termchar;
+  while (ch != EOF && isspace(ch))
+    ch = text_getc(file);
+  if (isdigit(ch)) {            /* oops, put it back */
+    if (ungetc(ch, file) == EOF)
+      return FALSE;
+    ch = ' ';
+  } else {
+    /* Any separators other than ';' and ':' are ignored;
+     * this allows user to insert commas, etc, if desired.
+     */
+    if (ch != EOF && ch != ';' && ch != ':')
+      ch = ' ';
+  }
+  *termchar = ch;
+  return TRUE;
+}
+
+
+GLOBAL(boolean)
+read_scan_script (j_compress_ptr cinfo, string filename)
+/* Read a scan script from the specified text file.
+ * Each entry in the file defines one scan to be emitted.
+ * Entries are separated by semicolons ';'.
+ * An entry contains one to four component indexes,
+ * optionally followed by a colon ':' and four progressive-JPEG parameters.
+ * The component indexes denote which component(s) are to be transmitted
+ * in the current scan.  The first component has index 0.
+ * Sequential JPEG is used if the progressive-JPEG parameters are omitted.
+ * The file is free format text: any whitespace may appear between numbers
+ * and the ':' and ';' punctuation marks.  Also, other punctuation (such
+ * as commas or dashes) can be placed between numbers if desired.
+ * Comments preceded by '#' may be included in the file.
+ * Note: we do very little validity checking here;
+ * jcmaster.c will validate the script parameters.
+ */
+{
+  FILE * fp;
+  int scanno, ncomps, termchar;
+  long val;
+  jpeg_scan_info * scanptr;
+#define MAX_SCANS  100          /* quite arbitrary limit */
+  jpeg_scan_info scans[MAX_SCANS];
+
+  if ((fp = fopen(filename.c_str(), "r")) == NULL) {
+    fprintf(stderr, "Can't open scan definition file %s\n", filename.c_str());
+    return FALSE;
+  }
+  scanptr = scans;
+  scanno = 0;
+
+  while (read_scan_integer(fp, &val, &termchar)) {
+    if (scanno >= MAX_SCANS) {
+      fprintf(stderr, "Too many scans defined in file %s\n", filename.c_str());
+      fclose(fp);
+      return FALSE;
+    }
+    scanptr->component_index[0] = (int) val;
+    ncomps = 1;
+    while (termchar == ' ') {
+      if (ncomps >= MAX_COMPS_IN_SCAN) {
+        fprintf(stderr, "Too many components in one scan in file %s\n", filename.c_str());
+        fclose(fp);
+        return FALSE;
+      }
+      if (! read_scan_integer(fp, &val, &termchar))
+        goto bogus;
+      scanptr->component_index[ncomps] = (int) val;
+      ncomps++;
+    }
+    scanptr->comps_in_scan = ncomps;
+    if (termchar == ':') {
+      if (! read_scan_integer(fp, &val, &termchar) || termchar != ' ')
+        goto bogus;
+      scanptr->Ss = (int) val;
+      if (! read_scan_integer(fp, &val, &termchar) || termchar != ' ')
+        goto bogus;
+      scanptr->Se = (int) val;
+      if (! read_scan_integer(fp, &val, &termchar) || termchar != ' ')
+        goto bogus;
+      scanptr->Ah = (int) val;
+      if (! read_scan_integer(fp, &val, &termchar))
+        goto bogus;
+      scanptr->Al = (int) val;
+    } else {
+      /* set non-progressive parameters */
+      scanptr->Ss = 0;
+      scanptr->Se = DCTSIZE2-1;
+      scanptr->Ah = 0;
+      scanptr->Al = 0;
+    }
+    if (termchar != ';' && termchar != EOF) {
+bogus:
+      fprintf(stderr, "Invalid scan entry format in file %s\n", filename.c_str());
+      fclose(fp);
+      return FALSE;
+    }
+    scanptr++, scanno++;
+  }
+
+  if (termchar != EOF) {
+    fprintf(stderr, "Non-numeric data in file %s\n", filename.c_str());
+    fclose(fp);
+    return FALSE;
+  }
+  if (scanno > 0) {
+    /* Stash completed scan list in cinfo structure.
+     * NOTE: for cjpeg's use, JPOOL_IMAGE is the right lifetime for this data,
+     * but if you want to compress multiple images you'd want JPOOL_PERMANENT.
+     */
+    scanptr = (jpeg_scan_info *)
+      (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_IMAGE,
+                                  scanno * SIZEOF(jpeg_scan_info));
+    MEMCOPY(scanptr, scans, scanno * SIZEOF(jpeg_scan_info));
+    cinfo->scan_info = scanptr;
+    cinfo->num_scans = scanno;
+  }
+
+  fclose(fp);
+  return TRUE;
+}
 
 
 /* My version of the JPEG error_exit function. We want to pass control back
@@ -226,16 +413,27 @@ void JPEGCompressor::InitCompression( const RawTile& rawtile, unsigned int strip
   /*************************************************************************
    for future support of JPEGs (progresive) and PNGs (interlaced) - @beaudet
    jpeg_simple_progression( &cinfo );
+   HOWEVER: it appears the way that IIP compresses strips (sequentially) might 
+   simply be at odds with the way progressive JPEG compression works, at least
+   for CVTs... so, it would seem we'd have to junk this approach and compress the
+   entire image using Compress (which I'm guessing would work) but then it would be
+   slower time to first byte I think - so, ultimately, the best solution might be
+   for a memcache helper to visit the contents of the cache with the sole purpose
+   of turning those cached images into progressive JPEGs... or just relying on a
+   CDN to do it instead.  All this said, I still think we can serve tiles using
+   progressive JPEGs, so I'm going to apply simple progression to the Compress
+   function and test that
+   SOME TEST CODE BELOW THAT MIGHT ONE DAY BE HELPFUL
+   // enable progressive jpeg support but only if the requested width and height
+   // size
+   //  if ( width <= 1024 && height <= 1024 )
+   //string fname = "scanscript.txt";
+   //if (! read_scan_script(&cinfo, fname ) )
+   //  logfile << "ERROR: Could not ready scanscript.txt" << endl;
+   // jpeg_simple_progression( &cinfo );
   *************************************************************************/
-  // enable progressive jpeg support but only if the requested width and height
-  // are relatively small - there's a bug in the progressive jpeg script that
-  // causes a segfault when requesting images that are larger than a certain
-  // size
-  //if ( width <= 1024 && height <= 1024 )
-  //  jpeg_simple_progression( &cinfo );
 
   jpeg_start_compress( &cinfo, TRUE );
-
 
   // Copy the JPEG header data to our output tile buffer
   size_t datacount = dest->size - dest->pub.free_in_buffer;
@@ -243,7 +441,6 @@ void JPEGCompressor::InitCompression( const RawTile& rawtile, unsigned int strip
   if( datacount > 0 ){
     memcpy( header, dest->buffer, datacount );
   }
-
 
   // Reset the pointers
   size_t mx = cinfo.image_width * strip_height * cinfo.input_components;
@@ -257,7 +454,6 @@ void JPEGCompressor::InitCompression( const RawTile& rawtile, unsigned int strip
   // embed icc profile if one is supplied 
   if ( icc_profile_buf != NULL )
     write_icc_profile( &cinfo, icc_profile_buf, icc_profile_len );
-
 }
 
 
@@ -399,8 +595,14 @@ int JPEGCompressor::Compress( RawTile& rawtile, unsigned long icc_profile_len, u
 
   /*************************************************************************
    for future support of JPEGs (progresive) and PNGs (interlaced) - @beaudet
-   jpeg_simple_progression( &cinfo );
+  jpeg_simple_progression( &cinfo );
+  HOWEVER: While this works for tiles, it appears to have a performance impact
+  so it might not be worth it, at least not when serving up the initial tiles
+  ; it might be better to address this by adjusting the cache in memcache
+  with a separate process that turns those into progressive JPEGs asynchronously
+  or via a CDN's operation
   *************************************************************************/
+  //jpeg_simple_progression( &cinfo );
 
   jpeg_start_compress( &cinfo, TRUE );
 

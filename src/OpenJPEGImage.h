@@ -19,6 +19,7 @@
 #ifndef _OPENJPEGIMAGE_H
 #define _OPENJPEGIMAGE_H
 
+#include "debug.h"
 #include "IIPImage.h"
 
 #define TILESIZE 256

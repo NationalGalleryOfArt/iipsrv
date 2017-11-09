@@ -22,8 +22,7 @@
 #ifndef _TASK_H
 #define _TASK_H
 
-
-
+#include <debug.h>
 #include <string>
 #include <fstream>
 #include "IIPImage.h"

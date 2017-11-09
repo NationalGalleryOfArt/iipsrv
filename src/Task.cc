@@ -481,7 +481,6 @@ void CTW::run( Session* session, const string& argument ){
       for( unsigned int j=0;j<session->view->ctw[0].size(); j++ ){
 	*(session->logfile) << session->view->ctw[i][j] << " ";
       }
-      *(session->logfile) << endl;
     }
   }
 

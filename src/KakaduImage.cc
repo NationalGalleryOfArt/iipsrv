@@ -26,6 +26,7 @@
 */
 
 
+#include <debug.h>
 #include "KakaduImage.h"
 #include <kdu_compressed.h>
 #include <cmath>
@@ -52,7 +53,6 @@ unsigned int get_nprocs_conf(){
 
 
 #include "Timer.h"
-//#define DEBUG 1
 
 
 using namespace std;

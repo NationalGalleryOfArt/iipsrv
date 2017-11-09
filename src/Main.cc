@@ -22,6 +22,7 @@
 
 
 
+#include <debug.h>
 #include <fcgiapp.h>
 
 #include <ctime>
@@ -32,6 +33,13 @@
 #include <string>
 #include <utility>
 #include <map>
+
+#include <stdio.h>
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 
 #include "TPTImage.h"
 #include "Compressor.h"
@@ -58,7 +66,6 @@
 #include "DSOImage.h"
 #endif
 
-
 // If necessary, define missing setenv and unsetenv functions
 #ifndef HAVE_SETENV
 static void setenv(char *n, char *v, int x) {
@@ -81,8 +88,6 @@ static void unsetenv(char *env_name) {
 // Define our default socket backlog
 #define DEFAULT_BACKLOG 2048
 
-//#define DEBUG 1
-
 using namespace std;
 
 
@@ -95,6 +100,25 @@ ofstream logfile;
 unsigned long IIPcount;
 char *tz = NULL;
 
+
+/*void segFaultHandler(int sig) {
+  void *array[100];
+  size_t size;
+
+  // get void*'s for all entries on the stack
+  size = backtrace(array, 100);
+
+  logfile.close();
+
+  FILE *f = fopen(Environment::getLogFile().c_str(), "a");
+
+  // print out all the frames to stderr
+  //fprintf(stderr, "Error: signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, fileno(f));
+  close(fileno(f));
+  exit(1);
+}
+*/
 
 
 /* Handle a signal - print out some stats and exit
@@ -134,6 +158,8 @@ void IIPSignalHandler( int signal )
 
 int main( int argc, char *argv[] )
 {
+
+  // signal(SIGSEGV, segFaultHandler);   // install a segfault handler
 
   IIPcount = 0;
   int i;
@@ -368,8 +394,7 @@ int main( int argc, char *argv[] )
 #endif
 
 
-
-  // Add a new line
+  // Add a new blank line
   if( loglevel >= 1 ) logfile << endl;
 
 
@@ -430,8 +455,8 @@ int main( int argc, char *argv[] )
   signal( SIGHUP, IIPSignalHandler );
 #endif
 
-  signal( SIGTERM, IIPSignalHandler );
-  signal( SIGINT, IIPSignalHandler );
+  //signal( SIGTERM, IIPSignalHandler );
+  //signal( SIGINT, IIPSignalHandler );
 
 
 
@@ -475,7 +500,6 @@ int main( int argc, char *argv[] )
 
 #endif
 
-
     // Time each request
     if( loglevel >= 2 ) request_timer.start();
 
@@ -496,18 +520,22 @@ int main( int argc, char *argv[] )
     view.setAllowUpscaling( allow_upscaling );
 
 
+#ifndef DEBUG
     if (loglevel > 3) {
       char **envp = request.envp;
       for ( ; *envp; ++envp) {
         logfile << "ENV DUMP:" << *envp << endl;
       }
     }
+#endif
 
     // if MaxSamplingSize HTTP header is present, use it to override the default
     int max_sample_size = Environment::getMaxSampleSize();
     char* header = NULL;
+#ifndef DEBUG
     if ( (header = FCGX_GetParam("HTTP_MAX_SAMPLE_SIZE", request.envp)) )
       max_sample_size = atoi( header );
+#endif
 
     if ( max_sample_size != 0 ) {
       if (loglevel > 2) 
@@ -574,7 +602,11 @@ int main( int argc, char *argv[] )
       ******************************************************************************************************************/
       if ( !iiif_prefix.empty() ) {
 
+#ifndef DEBUG
         char *requri = FCGX_GetParam( "REQUEST_URI", request.envp );
+#else
+        char *requri = header;
+#endif 
         const string request_uri = (requri!=NULL) ? requri : "";
 
         unsigned int rLen = request_uri.length();
@@ -620,6 +652,7 @@ int main( int argc, char *argv[] )
       session.headers["QUERY_STRING"] = request_string;
       session.headers["BASE_URL"] = base_url;
 
+#ifndef DEBUG
       // Get several other HTTP headers
       if( (header = FCGX_GetParam("SERVER_PROTOCOL", request.envp)) ){
         session.headers["SERVER_PROTOCOL"] = string(header);
@@ -646,7 +679,7 @@ int main( int argc, char *argv[] )
       }
 
 
-#ifdef HAVE_MEMCACHED
+  #ifdef HAVE_MEMCACHED
       // Check whether this exists in memcached, but only if we haven't had an if_modified_since
       // request, which should always be faster to send
       if (!disable_primary_memcache) {
@@ -660,6 +693,7 @@ int main( int argc, char *argv[] )
           }
         }
       }
+  #endif
 #endif
 
       // Parse up the command list
@@ -745,6 +779,7 @@ int main( int argc, char *argv[] )
       ////////////////////////////////////////////////////////
 
 #ifdef HAVE_MEMCACHED
+  #ifndef DEBUG
       if (!disable_primary_memcache) {
         if( memcached.connected() ){
           Timer memcached_timer;
@@ -756,6 +791,7 @@ int main( int argc, char *argv[] )
           }
         }
       }
+  #endif
 #endif
 
       //////////////////////////////////////////////////////
