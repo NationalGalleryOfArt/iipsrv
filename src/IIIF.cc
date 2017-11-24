@@ -26,6 +26,7 @@
 #include "Task.h"
 #include "Tokenizer.h"
 #include "Transforms.h"
+#include "Filters.h"
 #include "URL.h"
 #include "sys/stat.h"
 
@@ -77,7 +78,8 @@ void IIIF::run( Session* session, const string& src )
     string id;
     string host = session->headers["BASE_URL"];
     if ( host.length() > 0 ){
-      id = host + (session->headers["QUERY_STRING"]).substr(5, string::npos);
+      // id = host + (session->headers["QUERY_STRING"]).substr(5, string::npos);
+      id = host + argument; 
     }
     else{
       string request_uri = session->headers["REQUEST_URI"];
@@ -174,8 +176,9 @@ void IIIF::run( Session* session, const string& src )
     string id;
     string host = session->headers["BASE_URL"];
     if ( host.length() > 0 ){
-      string query = (session->headers["QUERY_STRING"]);
-      query = query.substr( 5, query.length() - suffix.length() - 6 );
+      //string query = (session->headers["QUERY_STRING"]);
+      // we have the url calculated above already so just use that since there might also be additional params to IIIF in the query string
+      string query = argument.substr( 0, argument.length() - suffix.length() - 1 );
       id = host + query;
     }
     else{
@@ -192,8 +195,10 @@ void IIIF::run( Session* session, const string& src )
     }
 
     // Decode and escape any URL-encoded characters from our file name for JSON
+*(session->logfile) << "IIIF :: id2 :" << id << endl;
     URL json(id);
     string escapedFilename = json.escape();
+*(session->logfile) << "IIIF :: escapedFilename:" << escapedFilename << endl;
     string iiif_id = session->headers["HTTP_X_IIIF_ID"].empty() ? escapedFilename : session->headers["HTTP_X_IIIF_ID"];
 
     if ( session->loglevel >= 5 ){
@@ -247,7 +252,10 @@ void IIIF::run( Session* session, const string& src )
     // Now output the info text
     stringstream header;
     header << "Server: iipsrv/" << VERSION << eof
-           << "Content-Type: application/ld+json" << eof
+    //     << "Content-Type: application/ld+json" << eof
+    // removed ld+json since the specs suggest it's optional and in prezi 3.0 this
+    // will move to ld+json but with a profile specification as well
+           << "Content-Type: application/json" << eof
            << "Last-Modified: " << (*session->image)->getTimestamp() << eof
            << session->response->getCacheControl() << eof;
 
@@ -322,18 +330,97 @@ void IIIF::run( Session* session, const string& src )
         }
 
         // Define our denominators as our session view expects a ratio, not pixel values
-        float wd = (float)width;
-        float hd = (float)height;
+        //float wd = (float)width;
+        //float hd = (float)height;
 
+        int x1check = 0; // upper left corner of region
+        int y1check = 0; 
+        int x2check = 0; // lower right corner of region
+        int y2check = 0;
+
+        // recalculate percentage after performing integer math on the original size first since we have to do some checks
+        // to make sure everything is within bounds, potentially perform some clipping, etc.  Only after that is is safe to
+        // recompute the percentages to use on subsequent resolutions
         if ( isPCT ){
-          wd = 100.0;
-          hd = 100.0;
+          //wd = 100.0;
+          //hd = 100.0;
+            x1check = (region[0] / 100.0) * width;  
+            y1check = (region[1] / 100.0) * height; 
+            x2check = x1check + (region[2] / 100.0) * width;  
+            y2check = y1check + (region[3] / 100.0) * height; 
+        }
+        else {
+            x1check = region[0];
+            y1check = region[1];
+            x2check = x1check + region[2];
+            y2check = y1check + region[3];
         }
 
-        session->view->setViewLeft( region[0] / wd );
+logfile << "width: " << width << endl;
+logfile << "height: " << height << endl;
+
+logfile << "region0: " << region[0] << endl;
+logfile << "region1: " << region[1] << endl;
+logfile << "region2: " << region[2] << endl;
+logfile << "region3: " << region[3] << endl;
+
+logfile << "x1ca: " << x1check << endl;
+logfile << "y1ca: " << y1check << endl;
+logfile << "x2ca: " << x2check << endl;
+logfile << "y2ca: " << y2check << endl;
+
+        // now, if the start of the region is beyond the max extends or the end is before the max extents, it doesn't overlap at all with the image
+        // so we need to throw an error
+        if ( (x1check >= (int) width || x2check <= 0) || (y1check > (int) height || y2check <= 0) )
+            throw invalid_argument( "invalid region 1: the specified region does not intersect with the geometry of the image" );
+        if ( (x1check >= x2check || y1check >= y2check) )
+            throw invalid_argument( "invalid region 2: the specified region does not intersect with the geometry of the image" );
+
+        // otherwise, we need to clamp the values so they are all valid w.r.t. the original image
+        x1check = CLAMP<int>(x1check, 0, width-1);
+        y1check = CLAMP<int>(y1check, 0, height-1);
+        x2check = CLAMP<int>(x2check, 0, width);
+        y2check = CLAMP<int>(y2check, 0, height);
+
+        // + 1 because we want the full width of the region rather the difference between the first and last column or row
+        int widthinpix = x2check-x1check;
+        //if (widthinpix <= 0)
+        //    widthinpix = 1;
+        int heightinpix = y2check-y1check;
+        //if (heightinpix <= 0)
+        //    heightinpix = 1;
+
+        //if ( (x1check >= x2check ) || (y1check >= y2check ) )
+        //    throw invalid_argument( "invalid region: the resulting region on the target image has zero width or zero height" );
+
+logfile << "x1cb: " << x1check << endl;
+logfile << "y1cb: " << y1check << endl;
+logfile << "x2cb: " << x2check << endl;
+logfile << "y2cb: " << y2check << endl;
+
+logfile << "widthinpix: " << widthinpix << endl;
+logfile << "heightinpix: " << heightinpix << endl;
+
+        // and finally, we set this now guaranteed valid region to a proportion of the original image
+        session->view->setViewLeft(     (float) x1check         / (float) width );
+        session->view->setViewTop(      (float) y1check         / (float) height );
+        session->view->setViewWidth(    (float) widthinpix      / (float) width );  
+        session->view->setViewHeight(   (float) heightinpix     / (float) height ); 
+
+        /*session->view->setViewLeft( region[0] / wd );
         session->view->setViewTop( region[1] / hd );
         session->view->setViewWidth( region[2] / wd );
-        session->view->setViewHeight( region[3] / hd );
+        session->view->setViewHeight( region[3] / hd );*/
+
+logfile << "x1c: " << x1check << endl;
+logfile << "y1c: " << y1check << endl;
+logfile << "x2c: " << x2check << endl;
+logfile << "y2c: " << y2check << endl;
+
+logfile << "vl: " << session->view->getViewLeft() << endl;
+logfile << "vt: " << session->view->getViewTop() << endl;
+logfile << "vw: " << session->view->getViewWidth() << endl;
+logfile << "vh: " << session->view->getViewHeight() << endl;
 
         // Incorrect region request
         if ( region[2] <= 0.0 || region[3] <= 0.0 || regionIzer.hasMoreTokens() || n < 4 ){
@@ -422,7 +509,6 @@ void IIIF::run( Session* session, const string& src )
           if ( !(i >> requested_height) ) throw invalid_argument( "invalid height" );
         }
       }
-
 
       if ( requested_width == 0 || requested_height == 0 ){
         throw invalid_argument( "IIIF: invalid size" );
@@ -517,8 +603,12 @@ void IIIF::run( Session* session, const string& src )
       if ( quality == "native" || quality == "color" || quality == "default" ){
         // Do nothing
       }
-      else if ( quality == "grey" || quality == "gray" ){
+      else if ( quality == "grey" || quality == "gray" || quality == "grayscale" || quality == "greyscale" ){
         session->view->colourspace = GREYSCALE;
+      }
+      else if ( quality == "bitonal" ){
+        session->view->colourspace = GREYSCALE;
+        session->view->bitonal = true;
       }
       else{
         // IIIF image spec 2.1 says the image server SHOULD return a 400 error but if we want to support JPG and PNG
@@ -527,7 +617,7 @@ void IIIF::run( Session* session, const string& src )
         // or default.PNG_FILTER_AVG.png for PNG, etc.  In consulting with the IIIF spec authors, this has been discussed
         // but there were insufficient use cases to justify the spec taking it up right now.
         // see https://github.com/IIIF/iiif.io/issues/294 for the history - @beaudet
-        throw invalid_argument( "unsupported quality parameter - must be one of native, color or grey" );
+        throw invalid_argument( "unsupported quality parameter - must be one of native, color,  grey, or bitonal (currently unsupported in IIP)" );
       }
 
       numOfTokens++;
@@ -583,6 +673,29 @@ void IIIF::run( Session* session, const string& src )
     view_left = 0;
     view_top = 0;
   }
+
+  // now, for a little sanity checking per the Image API specs - if 
+  // calculate the extents where x1,y1 is upper left corner and x2,y2 is lower right corner
+  // and if the region is completely off the image and doesn't intersect at all with it, cropping won't help
+  // so we return a server 400 (bad request) response
+  int x1 = view_left;
+  int y1 = view_top;
+  int x2 = view_left + session->view->getViewWidth();
+  int y2 = view_top  + session->view->getViewHeight();
+
+  logfile << "x1: " << x1 << endl;
+  logfile << "y1: " << y1 << endl;
+  logfile << "x2: " << x2 << endl;
+  logfile << "y2: " << y2 << endl;
+  logfile << "im_width: " << im_width << endl;
+  logfile << "im_height: " << im_height << endl;
+
+  // if the left point is beyond the image on the right side or vice versa as well as similar check for y dimension
+  // then the region does not intersect with the image at all so cropping it won't help (and would in fact be an invalid crop)
+  if ( (x1 > im_width || x2 < 0) || (y1 > im_height || y2 < 0) )
+      throw invalid_argument( "invalid region: the specified region does not intersect with the geometry of the image" );
+  if ( (x1 > x2 || y1 > y2) )
+      throw invalid_argument( "invalid region: the specified region does not intersect with the geometry of the image" );
 
   // Determine whether this is a tile request which coincides with our tile boundaries
   if ( ( session->view->maintain_aspect && (requested_res > 0) &&

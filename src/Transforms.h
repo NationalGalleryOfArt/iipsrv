@@ -106,7 +106,11 @@ void filter_rotate( RawTile& in, float angle );
 
 /// Convert image to grayscale
 /** @param in input image */
-void filter_greyscale( RawTile& in );
+float filter_greyscale( RawTile& in );
+
+/// Convert image to bitonal
+/** @param in input image */
+void filter_bitonal( RawTile& in );
 
 
 /// Apply a color twist

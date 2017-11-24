@@ -78,6 +78,7 @@ class View{
   bool cmapped;                               /// Whether to modify colormap
   enum cmap_type cmap;                        /// colormap
   bool inverted;                              /// Whether to invert colormap
+  bool bitonal;                               /// Whether to convert greyscale to two colors (black and white)
   int max_layers;			      /// Maximum number of quality layers allowed
   int layers;			              /// Number of quality layers
   ColourSpaces colourspace;                   /// Requested colourspace
@@ -98,7 +99,7 @@ class View{
     contrast = 1.0; gamma = 1.0;
     xangle = 0; yangle = 90;
     shaded = false; shade[0] = 0; shade[1] = 0; shade[2] = 0;
-    cmapped = false; cmap = HOT; inverted = false;
+    cmapped = false; cmap = HOT; inverted = false; bitonal = false;
     max_layers = 0; layers = 0;
     rotation = 0.0; flip = 0;
     maintain_aspect = true;

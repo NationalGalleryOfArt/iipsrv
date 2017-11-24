@@ -104,6 +104,11 @@ void CVT::send( Session* session ){
     resampled_height = session->view->getRequestHeight();
   }
 
+logfile << "resam_wid: " << resampled_width << endl;
+logfile << "resam_hgt: " << resampled_height << endl;
+logfile << "im_wid: " << im_width << endl;
+logfile << "im_hgt: " << im_height << endl;
+
 
   // If we have requested that upscaling of images be prevented adjust requested size accordingly
   // N.B. im_width and height here are from the requested resolution and not the max resolution
@@ -173,7 +178,7 @@ void CVT::send( Session* session ){
   RawTile complete_image = tilemanager.getRegion( requested_res,
 						  session->view->xangle, session->view->yangle,
 						  session->view->getLayers(),
-						  view_left, view_top, view_width, view_height );
+						  view_left, view_top, view_width, view_height, session->view->getMaxSampleSize() );
 
   bool appliedColorFilters = false;
 
@@ -337,16 +342,22 @@ void CVT::send( Session* session ){
 
     if( session->loglevel >= 5 ) function_timer.start();
 
-    filter_greyscale( complete_image );
-    appliedColorFilters = true;
-
-    if( session->loglevel >= 5 ){
-      *(session->logfile) << "CVT :: Converting to greyscale in "
-			  << function_timer.getTime() << " microseconds" << endl;
+    if( session->view->bitonal != 1 ){
+        filter_greyscale( complete_image );
+        if( session->loglevel >= 5 ){
+            *(session->logfile) << "CVT :: Converting to greyscale in "
+                << function_timer.getTime() << " microseconds" << endl;
+        }
     }
+    else {
+        filter_bitonal( complete_image );
+        if( session->loglevel >= 5 ){
+            *(session->logfile) << "CVT :: Converting to bitonal in "
+                << function_timer.getTime() << " microseconds" << endl;
+        }
+    }
+    appliedColorFilters = true;
   }
-
-
 
   // Apply flip
   if( session->view->flip != 0 ){

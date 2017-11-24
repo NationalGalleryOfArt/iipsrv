@@ -21,6 +21,7 @@
 
 
 #include <cmath>
+#include <omp.h>
 #include "Transforms.h"
 #include "Filters.h"
 #include "Timer.h"
@@ -702,23 +703,24 @@ void filter_rotate( RawTile& in, float angle=0.0 ){
 }
 
 
-
 // Convert colour to grayscale using the conversion formula:
 //   Luminance = 0.2126*R + 0.7152*G + 0.0722*B
 // Note that we don't linearize before converting
-void filter_greyscale( RawTile& rawtile ){
+float filter_greyscale( RawTile& rawtile ){
 
-  if( rawtile.bpc != 8 || rawtile.channels != 3 ) return;
+  if ( rawtile.bpc != 8 || rawtile.channels != 3 ) return 0;
 
   unsigned int np = rawtile.width * rawtile.height;
   unsigned char* buffer = new unsigned char[rawtile.width * rawtile.height];
+
+  long total_luminance = 0;
 
   // Calculate using fixed-point arithmetic
   //  - benchmarks to around 25% faster than floating point
 #if defined(__ICC) || defined(__INTEL_COMPILER)
 #pragma ivdep
 #elif defined(_OPENMP)
-#pragma omp parallel for if( rawtile.width*rawtile.height > PARALLEL_THRESHOLD )
+#pragma omp parallel for if( rawtile.width*rawtile.height > PARALLEL_THRESHOLD ) reduction(+:total_luminance)
 #endif
   for( unsigned int i=0; i<np; i++ ){
     unsigned int n = i*rawtile.channels;
@@ -726,6 +728,7 @@ void filter_greyscale( RawTile& rawtile ){
     unsigned char G = ((unsigned char*)rawtile.data)[n++];
     unsigned char B = ((unsigned char*)rawtile.data)[n++];
     buffer[i] = (unsigned char)( ( 1254097*R + 2462056*G + 478151*B ) >> 22 );
+    total_luminance += buffer[i]; // accumlate the luminance
   }
 
   // Delete our old data buffer and instead point to our grayscale data
@@ -735,9 +738,61 @@ void filter_greyscale( RawTile& rawtile ){
   // Update our number of channels and data length
   rawtile.channels = 1;
   rawtile.dataLength = np;
+
+  if ( np > 0 )
+    return (float) total_luminance / (float) np;
+  else
+    return 0;
 }
 
 
+// Convert colour to bitonal
+// convert to grayscale first then apply Floyd-Steinberg dithering and a step filter based on mean of 128 bits / pixel
+void filter_bitonal( RawTile& rawtile ){
+  // 
+  filter_greyscale( rawtile );
+  //float avgLuminance = filter_greyscale( rawtile );
+
+  unsigned int np = rawtile.width * rawtile.height;
+  unsigned char* buffer = (unsigned char*) rawtile.data;
+
+  for( unsigned int idx=0; idx<np; idx++ ){
+    unsigned int x = idx % rawtile.width;
+    unsigned int y = idx / rawtile.width;
+
+    unsigned int oldpix = buffer[idx];
+    unsigned int newpix = oldpix < 128 ? 0 : 255; // assign the closer of black or white based on the old pixel value
+    unsigned int quant_error = oldpix - newpix;
+
+    buffer[idx] = (unsigned char) newpix;
+
+    // pixel to the right of the current pixel
+    if (x < rawtile.width-1) {
+      buffer[idx+1]               = CLAMP<unsigned char>((float) buffer[idx+1] + (float) quant_error * 7.0 / 16.0, 0, 255);
+    }
+
+    // pixel below and one column to the left
+    if (x > 0 && y < rawtile.height - 1) {
+      buffer[idx-1+rawtile.width] = CLAMP<unsigned char>((float) buffer[idx-1+rawtile.width] + (float) quant_error * 3.0 / 16.0, 0, 255);
+    }
+
+    // pixel directly below
+    if (y < rawtile.height - 1) {
+      buffer[idx+rawtile.width]   = CLAMP<unsigned char>((float) buffer[idx+rawtile.width] + (float) quant_error * 5.0 / 16.0, 0, 255);
+    }
+
+    // pixel below and one column to the right
+    if (x < rawtile.width-1 && y < rawtile.height - 1) {
+      buffer[idx+1+rawtile.width] = CLAMP<unsigned char>((float) buffer[idx+1+rawtile.width] + (float) quant_error * 1.0 / 16.0, 0, 255);
+    }
+  }
+  // for simple threshold filter, we could also do this... 
+  //for( unsigned int i=0; i<np; i++ ){ // first, we need to measure the mean luminance
+  //  buffer[i] = buffer[i] < avgLuminance ? 0 : 255;
+  // OR perhaps use 127 as the cutoff since that seems to produce much better results with dithering anyway
+  //  buffer[i] = buffer[i] < 128 ? 0 : 255;
+  //}
+}
 
 // Apply twist or channel recombination to colour or multi-channel image
 void filter_twist( RawTile& rawtile, const vector< vector<float> >& matrix ){
