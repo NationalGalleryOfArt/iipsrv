@@ -38,6 +38,17 @@
 
 #include "RawTile.h"
 
+#ifdef __GNUC__
+#  include <features.h>
+#  if __GNUC_PREREQ(4,7)
+#    define OVERRIDE override
+#  else
+#    define OVERRIDE
+#  endif
+#else
+#    define OVERRIDE
+#endif
+
 
 /// Define our own derived exception class for file errors
 class file_error : public std::runtime_error {
@@ -386,7 +397,7 @@ class IIPImage {
       @param l quality layers
       @param t tile number
    */
-  virtual RawTile getTile( int h, int v, unsigned int r, int l, unsigned int t ) { return RawTile(); };
+  virtual RawTile getTile( int h, int v, unsigned int r, int l, unsigned int t, int maxSamplingSize ) { return RawTile(); };
 
 
   /// Return a region for a given angle and resolution
@@ -401,7 +412,7 @@ class IIPImage {
       @param h height of region
       @param b image buffer
   */
-  virtual RawTile getRegion( int ha, int va, unsigned int r, int layers, int x, int y, unsigned int w, unsigned int h ){ return RawTile(); };
+  virtual RawTile getRegion( int ha, int va, unsigned int r, int layers, int x, int y, unsigned int w, unsigned int h, int maxSamplingSize ){ return RawTile(); };
 
   /// Assignment operator
   /** @param im IIPImage object */

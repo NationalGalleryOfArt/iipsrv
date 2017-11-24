@@ -63,7 +63,7 @@ class TileManager{
    *  @param c CompressionType
    *  @return RawTile
    */
-  RawTile getNewTile( int resolution, int tile, int xangle, int yangle, int layers, CompressionType c, unsigned long icc_profile_len, unsigned char *icc_profile_buf );
+  RawTile getNewTile( int resolution, int tile, int xangle, int yangle, int layers, CompressionType c, unsigned long icc_profile_len, unsigned char *icc_profile_buf, int maxSamplingSize );
 
 
   /// Crop a tile to remove padding
@@ -108,7 +108,7 @@ class TileManager{
    *  @param c CompressionType
    *  @return RawTile
    */
-  RawTile getTile( int resolution, int tile, int xangle, int yangle, int layers, CompressionType c, unsigned long icc_profile_len, unsigned char *icc_profile_buf );
+  RawTile getTile( int resolution, int tile, int xangle, int yangle, int layers, CompressionType c, unsigned long icc_profile_len, unsigned char *icc_profile_buf, int maxSamplingSize );
 
 
 
@@ -126,7 +126,7 @@ class TileManager{
    *  @param h height of region requested
    *  @return RawTile
    */
-    RawTile getRegion( unsigned int res, int xangle, int yangle, int layers, unsigned int x, unsigned int y, unsigned int w, unsigned int h );
+    RawTile getRegion( unsigned int res, int xangle, int yangle, int layers, unsigned int x, unsigned int y, unsigned int w, unsigned int h, int maxSamplingSize );
 
 };
 

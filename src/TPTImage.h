@@ -82,16 +82,16 @@ class TPTImage : public IIPImage {
   ~TPTImage() { closeImage(); };
 
   /// Overloaded function for opening a TIFF image
-  void openImage(int maxRes ) throw (file_error);
+  void openImage(int maxRes ) throw (file_error) OVERRIDE; 
 
   /// Overloaded function for loading TIFF image information
   /** @param x horizontal sequence angle
       @param y vertical sequence angle
    */
-  void loadImageInfo( int x, int y ) throw (file_error);
+  void loadImageInfo( int x, int y ) throw (file_error) OVERRIDE; 
 
   /// Overloaded function for closing a TIFF image
-  void closeImage();
+  void closeImage() OVERRIDE; 
 
   /// Overloaded function for getting a particular tile
   /** @param x horizontal sequence angle
@@ -100,7 +100,7 @@ class TPTImage : public IIPImage {
       @param l quality layers
       @param t tile number
    */
-  RawTile getTile( int x, int y, unsigned int r, int l, unsigned int t ) throw (file_error);
+  RawTile getTile( int x, int y, unsigned int r, int l, unsigned int t, int maxSampleSize ) throw (file_error) OVERRIDE; 
 
 };
 

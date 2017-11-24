@@ -124,25 +124,25 @@ public:
   /**
     Overloaded function for opening a JP2 image
   */
-  void openImage(int maxRes ) throw(file_error);
+  void openImage(int maxRes ) throw(file_error) OVERRIDE;
 
   /**
     Overloaded function for loading JP2 image information
     \param x horizontal sequence angle
     \param y vertical sequence angle
   */
-  void loadImageInfo(int x, int y ) throw(file_error);
+  void loadImageInfo(int x, int y ) throw(file_error) OVERRIDE;
 
   /**
     Overloaded function for closing a JP2 image
   */
-  void closeImage();
+  void closeImage() OVERRIDE;
 
   /// Return whether this image type directly handles region decoding.
   bool regionDecoding()
   {
     return true;
-  };
+  }; 
 
   /// Overloaded function for getting a particular tile
   /** @param x horizontal sequence angle
@@ -152,7 +152,7 @@ public:
       @param t tile number
    */
   RawTile getTile(int x, int y, unsigned int r, int l,
-                  unsigned int t ) throw(file_error);
+                  unsigned int t ) throw(file_error) OVERRIDE;
 
   /**
     Overloaded function for returning a region from image
@@ -167,7 +167,7 @@ public:
     \return         a RawTile object
   */
   RawTile getRegion(int ha, int va, unsigned int res, int layers,
-                    int x, int y, unsigned int w, unsigned int h) throw(file_error);
+                    int x, int y, unsigned int w, unsigned int h, int maxSamplingSize) throw(file_error) OVERRIDE;
 };
 
 #endif

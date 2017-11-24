@@ -31,7 +31,7 @@ using namespace std;
 
 
 
-RawTile TileManager::getNewTile( int resolution, int tile, int xangle, int yangle, int layers, CompressionType c, unsigned long icc_profile_len, unsigned char *icc_profile_buf ){
+RawTile TileManager::getNewTile( int resolution, int tile, int xangle, int yangle, int layers, CompressionType c, unsigned long icc_profile_len, unsigned char *icc_profile_buf, int maxSamplingSize ){
 
   if( loglevel >= 2 ) *logfile << "TileManager :: Cache Miss for resolution: " << resolution << ", tile: " << tile << endl
 			       << "TileManager :: Cache Size: " << tileCache->getNumElements()
@@ -41,7 +41,7 @@ RawTile TileManager::getNewTile( int resolution, int tile, int xangle, int yangl
   RawTile ttt;
 
   // Get our raw tile from the IIPImage image object
-  ttt = image->getTile( xangle, yangle, resolution, layers, tile );
+  ttt = image->getTile( xangle, yangle, resolution, layers, tile, maxSamplingSize );
 
 
   // Apply the watermark if we have one.
@@ -69,7 +69,7 @@ RawTile TileManager::getNewTile( int resolution, int tile, int xangle, int yangl
   if( c == UNCOMPRESSED ){
     // Add to our tile cache
     if( loglevel >= 2 ) insert_timer.start();
-    tileCache->insert( ttt );
+    tileCache->insert( ttt, maxSamplingSize );
     if( loglevel >= 2 ) *logfile << "TileManager :: Tile cache insertion time: " << insert_timer.getTime()
 				 << " microseconds" << endl;
     return ttt;
@@ -106,7 +106,7 @@ RawTile TileManager::getNewTile( int resolution, int tile, int xangle, int yangl
 
   // Add to our tile cache
   if( loglevel >= 2 ) insert_timer.start();
-  tileCache->insert( ttt );
+  tileCache->insert( ttt, maxSamplingSize );
   if( loglevel >= 2 ) *logfile << "TileManager :: Tile cache insertion time: " << insert_timer.getTime()
 			       << " microseconds" << endl;
 
@@ -155,7 +155,7 @@ void TileManager::crop( RawTile *ttt ){
 
 
 
-RawTile TileManager::getTile( int resolution, int tile, int xangle, int yangle, int layers, CompressionType c, unsigned long icc_profile_len, unsigned char *icc_profile_buf ){
+RawTile TileManager::getTile( int resolution, int tile, int xangle, int yangle, int layers, CompressionType c, unsigned long icc_profile_len, unsigned char *icc_profile_buf, int maxSamplingSize ){
 
   RawTile* rawtile = NULL;
   string tileCompression;
@@ -174,25 +174,25 @@ RawTile TileManager::getTile( int resolution, int tile, int xangle, int yangle, 
 
     case JPEG:
       if( (rawtile = tileCache->getTile( image->getImagePath(), resolution, tile,
-					  xangle, yangle, JPEG, jpeg->getQuality() )) ) break;
+					  xangle, yangle, JPEG, jpeg->getQuality(), maxSamplingSize )) ) break;
       if( (rawtile = tileCache->getTile( image->getImagePath(), resolution, tile,
-					 xangle, yangle, DEFLATE, 0 )) ) break;
+					 xangle, yangle, DEFLATE, 0, maxSamplingSize )) ) break;
       if( (rawtile = tileCache->getTile( image->getImagePath(), resolution, tile,
-					 xangle, yangle, UNCOMPRESSED, 0 )) ) break;
+					 xangle, yangle, UNCOMPRESSED, 0, maxSamplingSize )) ) break;
       break;
 
 
     case DEFLATE:
       if( (rawtile = tileCache->getTile( image->getImagePath(), resolution, tile,
-					 xangle, yangle, DEFLATE, 0 )) ) break;
+					 xangle, yangle, DEFLATE, 0, maxSamplingSize )) ) break;
       if( (rawtile = tileCache->getTile( image->getImagePath(), resolution, tile,
-					 xangle, yangle, UNCOMPRESSED, 0 )) ) break;
+					 xangle, yangle, UNCOMPRESSED, 0, maxSamplingSize )) ) break;
       break;
 
 
     case UNCOMPRESSED:
       if( (rawtile = tileCache->getTile( image->getImagePath(), resolution, tile,
-					 xangle, yangle, UNCOMPRESSED, 0 )) ) break;
+					 xangle, yangle, UNCOMPRESSED, 0, maxSamplingSize )) ) break;
       break;
 
 
@@ -211,7 +211,7 @@ RawTile TileManager::getTile( int resolution, int tile, int xangle, int yangle, 
     }
 
     // an ICC profile is only applied when a JPEG is being requested and that shouldn't happen if we have color filters to apply
-    RawTile newtile = this->getNewTile( resolution, tile, xangle, yangle, layers, c, icc_profile_len, icc_profile_buf );
+    RawTile newtile = this->getNewTile( resolution, tile, xangle, yangle, layers, c, icc_profile_len, icc_profile_buf, maxSamplingSize );
 
     if( loglevel >= 2 ) *logfile << "TileManager :: Total Tile Access Time: "
 				 << tile_timer.getTime() << " microseconds" << endl;
@@ -261,7 +261,7 @@ RawTile TileManager::getTile( int resolution, int tile, int xangle, int yangle, 
 
       // Add our compressed tile to the cache
       if( loglevel >= 2 ) insert_timer.start();
-      tileCache->insert( ttt );
+      tileCache->insert( ttt, maxSamplingSize );
       if( loglevel >= 2 ) *logfile << "TileManager :: Tile cache insertion time: " << insert_timer.getTime()
 				   << " microseconds" << endl;
 
@@ -291,14 +291,14 @@ RawTile TileManager::getTile( int resolution, int tile, int xangle, int yangle, 
 }
 
 
-RawTile TileManager::getRegion( unsigned int res, int seq, int ang, int layers, unsigned int x, unsigned int y, unsigned int width, unsigned int height ){
+RawTile TileManager::getRegion( unsigned int res, int seq, int ang, int layers, unsigned int x, unsigned int y, unsigned int width, unsigned int height, int maxSamplingSize ){
 
   // If our image type can directly handle region compositing, simply return that
   if( image->regionDecoding() ){
     if( loglevel >= 3 ){
       *logfile << "TileManager getRegion :: requesting region directly from image" << endl;
     }
-    return image->getRegion( seq, ang, res, layers, x, y, width, height );
+    return image->getRegion( seq, ang, res, layers, x, y, width, height, maxSamplingSize );
   }
 
   // Otherwise do the compositing ourselves
@@ -388,7 +388,7 @@ RawTile TileManager::getRegion( unsigned int res, int seq, int ang, int layers, 
       if( loglevel >= 2 ) tile_timer.start();
 
       // Get an uncompressed tile - never needs an ICC profile
-      RawTile rawtile = this->getTile( res, (i*ntlx) + j, seq, ang, layers, UNCOMPRESSED, 0, NULL);
+      RawTile rawtile = this->getTile( res, (i*ntlx) + j, seq, ang, layers, UNCOMPRESSED, 0, NULL, maxSamplingSize);
 
       if( loglevel >= 2 ){
 	*logfile << "TileManager getRegion :: Tile access time " << tile_timer.getTime() << " microseconds for tile "

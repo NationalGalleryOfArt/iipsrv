@@ -28,7 +28,7 @@
 using namespace std;
 
 
-void TPTImage::openImage(int maxSampleSize) throw (file_error)
+void TPTImage::openImage(int maxSampleSize) throw (file_error) 
 {
 
   // Insist that the tiff and tile_buf be NULL
@@ -76,7 +76,7 @@ void TPTImage::openImage(int maxSampleSize) throw (file_error)
 }
 
 
-void TPTImage::loadImageInfo( int seq, int ang ) throw(file_error)
+void TPTImage::loadImageInfo( int seq, int ang ) throw(file_error) 
 {
   tdir_t current_dir;
   int count;
@@ -207,7 +207,7 @@ void TPTImage::loadImageInfo( int seq, int ang ) throw(file_error)
 }
 
 
-void TPTImage::closeImage()
+void TPTImage::closeImage() 
 {
   if( tiff != NULL ){
     TIFFClose( tiff );
@@ -220,7 +220,7 @@ void TPTImage::closeImage()
 }
 
 
-RawTile TPTImage::getTile( int seq, int ang, unsigned int res, int layers, unsigned int tile ) throw (file_error)
+RawTile TPTImage::getTile( int seq, int ang, unsigned int res, int layers, unsigned int tile, int maxSampleSize ) throw (file_error) 
 {
   uint32 im_width, im_height, tw, th, ntlx, ntly;
   uint32 rem_x, rem_y;
@@ -228,7 +228,7 @@ RawTile TPTImage::getTile( int seq, int ang, unsigned int res, int layers, unsig
   string filename;
 
   // Check the resolution exists
-  if( res > numResolutions ){
+  if( res >= numResolutions ){
     ostringstream error;
     error << "TPTImage :: Asked for non-existent resolution: " << res;
     throw file_error( error.str() );
@@ -349,7 +349,7 @@ RawTile TPTImage::getTile( int seq, int ang, unsigned int res, int layers, unsig
   }
 
 
-  RawTile rawtile( tile, res, seq, ang, tw, th, channels, bpc );
+  RawTile rawtile( tile, res, seq, ang, tw, th, channels, bpc, maxSampleSize );
   rawtile.data = tile_buf;
   rawtile.dataLength = length;
   rawtile.filename = getImagePath();

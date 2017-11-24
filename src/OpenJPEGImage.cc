@@ -320,7 +320,7 @@ RawTile OpenJPEGImage::getTile(int seq, int ang, unsigned int res, int layers,
 #endif
 
   // Create Rawtile object and initialize it
-  RawTile rawtile(tile, res, seq, ang, tw, th, channels, 8);
+  RawTile rawtile(tile, res, seq, ang, tw, th, channels, 8, maxSamplingSize);
   rawtile.data = new unsigned char[tw * th * channels];
   rawtile.dataLength = tw * th * channels;
   rawtile.filename = getImagePath();

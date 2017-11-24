@@ -61,6 +61,9 @@ class RawTile{
   /// The resolution to which this tile belongs
   int resolution;
 
+  /// max sampling size associated with this tile
+  int maxSamplingSize;
+
   /// The horizontal angle to which this tile belongs
   int hSequence;
 
@@ -120,16 +123,16 @@ class RawTile{
       @param b bits per channel per sample
   */
   RawTile( int tn = 0, int res = 0, int hs = 0, int vs = 0,
-	   int w = 0, int h = 0, int c = 0, int b = 0 ) {
+	   int w = 0, int h = 0, int c = 0, int b = 0, int mx = 0 ) {
     width = w; height = h; bpc = b; dataLength = 0; data = NULL;
-    tileNum = tn; resolution = res; hSequence = hs ; vSequence = vs;
+    tileNum = tn; resolution = res; maxSamplingSize = mx; hSequence = hs ; vSequence = vs;
     memoryManaged = 1; channels = c; compressionType = UNCOMPRESSED; quality = 0;
-    timestamp = 0; sampleType = FIXEDPOINT; padded = false;
+    timestamp = 0; sampleType = FIXEDPOINT; padded = false; 
   };
 
   byte* serialize(unsigned long &bufferlength) {
     bufferlength =    sizeof(bool)
-                    + sizeof(int)*9
+                    + sizeof(int)*10
                     + sizeof(unsigned int)*2
                     + sizeof(time_t)
                     + sizeof(SampleType)
@@ -144,6 +147,7 @@ class RawTile{
     memcpy(&buff[i], &padded,            sizeof(bool));              i+=sizeof(bool);
     memcpy(&buff[i], &tileNum,           sizeof(int));               i+=sizeof(int);
     memcpy(&buff[i], &resolution,        sizeof(int));               i+=sizeof(int);
+    memcpy(&buff[i], &maxSamplingSize,   sizeof(int));               i+=sizeof(int);
     memcpy(&buff[i], &hSequence,         sizeof(int));               i+=sizeof(int);
     memcpy(&buff[i], &vSequence,         sizeof(int));               i+=sizeof(int);
     memcpy(&buff[i], &quality,           sizeof(int));               i+=sizeof(int);
@@ -177,6 +181,7 @@ class RawTile{
     memcpy(&padded,          &buff[i], sizeof(bool));              i+=sizeof(bool);
     memcpy(&tileNum,         &buff[i], sizeof(int));               i+=sizeof(int);
     memcpy(&resolution,      &buff[i], sizeof(int));               i+=sizeof(int);
+    memcpy(&maxSamplingSize, &buff[i], sizeof(int));               i+=sizeof(int);
     memcpy(&hSequence,       &buff[i], sizeof(int));               i+=sizeof(int);
     memcpy(&vSequence,       &buff[i], sizeof(int));               i+=sizeof(int);
     memcpy(&quality,         &buff[i], sizeof(int));               i+=sizeof(int);
@@ -245,6 +250,7 @@ class RawTile{
 
     tileNum = tile.tileNum;
     resolution = tile.resolution;
+    maxSamplingSize = tile.maxSamplingSize;
     hSequence = tile.hSequence;
     vSequence = tile.vSequence;
     compressionType = tile.compressionType;
@@ -285,6 +291,7 @@ class RawTile{
 
     tileNum = tile.tileNum;
     resolution = tile.resolution;
+    maxSamplingSize = tile.maxSamplingSize;
     hSequence = tile.hSequence;
     vSequence = tile.vSequence;
     compressionType = tile.compressionType;

@@ -215,11 +215,11 @@ class Cache {
 
   /// Insert a tile
   /** @param r Tile to be inserted */
-  void insert( const RawTile &r ) {
+  void insert( const RawTile &r, int maxSamplingSize ) {
 
     // generate key into the cache regardless of the cache we're using
     std::string key = this->getKey( r.filename, r.resolution, r.tileNum,
-                                    r.hSequence, r.vSequence, r.compressionType, r.quality );
+                                    r.hSequence, r.vSequence, r.compressionType, r.quality, maxSamplingSize );
 
 #ifdef HAVE_MEMCACHED
     if ( maxSize <= 0 && ( memcached == NULL || !memcached->connected() ) )
@@ -307,9 +307,8 @@ class Cache {
    *  @param q compression quality
    *  @return pointer to data or NULL on error
    */
-  RawTile* getTile( std::string f, int r, int t, int h, int v, CompressionType c, int q ) {
-
-    std::string key = this->getKey( f, r, t, h, v, c, q );
+  RawTile* getTile( std::string f, int r, int t, int h, int v, CompressionType c, int q, int maxSamplingSize ) {
+    std::string key = this->getKey( f, r, t, h, v, c, q, maxSamplingSize );
 
 #ifdef HAVE_MEMCACHED
     if ( maxSize <= 0 && ( memcached == NULL || !memcached->connected() ) )
@@ -362,9 +361,9 @@ class Cache {
    *  @param q compression quality
    *  @return string
    */
-  std::string getKey( std::string f, int r, int t, int h, int v, CompressionType c, int q ) {
+  std::string getKey( std::string f, int r, int t, int h, int v, CompressionType c, int q, int maxSamplingSize ) {
     char tmp[1024];
-    snprintf( tmp, 1024, "%s:%d:%d:%d:%d:%d:%d", f.c_str(), r, t, h, v, c, q );
+    snprintf( tmp, 1024, "%s:%d:%d:%d:%d:%d:%d:%d", f.c_str(), r, t, h, v, c, q, maxSamplingSize );
     return std::string( tmp );
   }
 

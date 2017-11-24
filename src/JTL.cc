@@ -99,7 +99,7 @@ void JTL::send( Session* session, int resolution, int tile ){
   // were performed - otherwise, a cached JPEG with ICC already applied might be created here and
   // we want the ICC profile embedded in that JPEG
   RawTile rawtile = tilemanager.getTile( resolution, tile, session->view->xangle,
-					 session->view->yangle, session->view->getLayers(), ct, iccLen, iccBuf );
+					 session->view->yangle, session->view->getLayers(), ct, iccLen, iccBuf, session->view->getMaxSampleSize() );
 
 
   int len = rawtile.dataLength;

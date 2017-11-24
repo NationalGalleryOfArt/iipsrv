@@ -141,7 +141,7 @@ void PFL::run( Session* session, const std::string& argument ){
     profile << "[";
 
     // Get the region of data for this wavelength and line profile
-    RawTile rawtile = tilemanager.getRegion( resolution, wavelength, session->view->yangle, session->view->getLayers(), x1, y1, width, height );
+    RawTile rawtile = tilemanager.getRegion( resolution, wavelength, session->view->yangle, session->view->getLayers(), x1, y1, width, height, session->view->getMaxSampleSize() );
 
     // Loop through our pixels
     length *= rawtile.channels;
