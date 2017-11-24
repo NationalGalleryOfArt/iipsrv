@@ -165,20 +165,20 @@ class KakaduImage : public IIPImage {
   ~KakaduImage() { closeImage(); };
 
   /// Overloaded function for opening a TIFF image
-  void openImage(int maxRes ) throw (file_error);
+  void openImage(int maxRes ) throw (file_error) OVERRIDE; 
 
 
   /// Overloaded function for loading TIFF image information
   /** @param x horizontal sequence angle
       @param y vertical sequence angle
    */
-  void loadImageInfo( int x, int y ) throw (file_error);
+  void loadImageInfo( int x, int y ) throw (file_error) OVERRIDE; 
 
   /// Overloaded function for closing a JPEG2000 image
-  void closeImage();
+  void closeImage() OVERRIDE; 
 
   /// Return whether this image type directly handles region decoding
-  bool regionDecoding(){ return true; };
+  bool regionDecoding() OVERRIDE { return true; };
 
   /// Overloaded function for getting a particular tile
   /** @param x horizontal sequence angle
@@ -187,7 +187,7 @@ class KakaduImage : public IIPImage {
       @param l number of quality layers to decode
       @param t tile number
    */
-  RawTile getTile( int x, int y, unsigned int r, int l, unsigned int t ) throw (file_error);
+  RawTile getTile( int x, int y, unsigned int r, int l, unsigned int t ) throw (file_error) OVERRIDE;
 
   /// Overloaded function for returning a region for a given angle and resolution
   /** Return a RawTile object: Overloaded by child class.
@@ -201,7 +201,7 @@ class KakaduImage : public IIPImage {
       @param h height of region
       @param b buffer to fill
    */
-  RawTile getRegion( int ha, int va, unsigned int r, int l, int x, int y, unsigned int w, unsigned int h ) throw (file_error);
+  RawTile getRegion( int ha, int va, unsigned int r, int l, int x, int y, unsigned int w, unsigned int h, int maxSamplingSize ) throw (file_error) OVERRIDE;
 
 
 };
