@@ -104,12 +104,6 @@ void CVT::send( Session* session ){
     resampled_height = session->view->getRequestHeight();
   }
 
-logfile << "resam_wid: " << resampled_width << endl;
-logfile << "resam_hgt: " << resampled_height << endl;
-logfile << "im_wid: " << im_width << endl;
-logfile << "im_hgt: " << im_height << endl;
-
-
   // If we have requested that upscaling of images be prevented adjust requested size accordingly
   // N.B. im_width and height here are from the requested resolution and not the max resolution
   if( !session->view->allow_upscaling ){

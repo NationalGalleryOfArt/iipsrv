@@ -195,10 +195,8 @@ void IIIF::run( Session* session, const string& src )
     }
 
     // Decode and escape any URL-encoded characters from our file name for JSON
-*(session->logfile) << "IIIF :: id2 :" << id << endl;
     URL json(id);
     string escapedFilename = json.escape();
-*(session->logfile) << "IIIF :: escapedFilename:" << escapedFilename << endl;
     string iiif_id = session->headers["HTTP_X_IIIF_ID"].empty() ? escapedFilename : session->headers["HTTP_X_IIIF_ID"];
 
     if ( session->loglevel >= 5 ){
@@ -356,19 +354,6 @@ void IIIF::run( Session* session, const string& src )
             y2check = y1check + region[3];
         }
 
-logfile << "width: " << width << endl;
-logfile << "height: " << height << endl;
-
-logfile << "region0: " << region[0] << endl;
-logfile << "region1: " << region[1] << endl;
-logfile << "region2: " << region[2] << endl;
-logfile << "region3: " << region[3] << endl;
-
-logfile << "x1ca: " << x1check << endl;
-logfile << "y1ca: " << y1check << endl;
-logfile << "x2ca: " << x2check << endl;
-logfile << "y2ca: " << y2check << endl;
-
         // now, if the start of the region is beyond the max extends or the end is before the max extents, it doesn't overlap at all with the image
         // so we need to throw an error
         if ( (x1check >= (int) width || x2check <= 0) || (y1check > (int) height || y2check <= 0) )
@@ -384,43 +369,13 @@ logfile << "y2ca: " << y2check << endl;
 
         // + 1 because we want the full width of the region rather the difference between the first and last column or row
         int widthinpix = x2check-x1check;
-        //if (widthinpix <= 0)
-        //    widthinpix = 1;
         int heightinpix = y2check-y1check;
-        //if (heightinpix <= 0)
-        //    heightinpix = 1;
-
-        //if ( (x1check >= x2check ) || (y1check >= y2check ) )
-        //    throw invalid_argument( "invalid region: the resulting region on the target image has zero width or zero height" );
-
-logfile << "x1cb: " << x1check << endl;
-logfile << "y1cb: " << y1check << endl;
-logfile << "x2cb: " << x2check << endl;
-logfile << "y2cb: " << y2check << endl;
-
-logfile << "widthinpix: " << widthinpix << endl;
-logfile << "heightinpix: " << heightinpix << endl;
 
         // and finally, we set this now guaranteed valid region to a proportion of the original image
         session->view->setViewLeft(     (float) x1check         / (float) width );
         session->view->setViewTop(      (float) y1check         / (float) height );
         session->view->setViewWidth(    (float) widthinpix      / (float) width );  
         session->view->setViewHeight(   (float) heightinpix     / (float) height ); 
-
-        /*session->view->setViewLeft( region[0] / wd );
-        session->view->setViewTop( region[1] / hd );
-        session->view->setViewWidth( region[2] / wd );
-        session->view->setViewHeight( region[3] / hd );*/
-
-logfile << "x1c: " << x1check << endl;
-logfile << "y1c: " << y1check << endl;
-logfile << "x2c: " << x2check << endl;
-logfile << "y2c: " << y2check << endl;
-
-logfile << "vl: " << session->view->getViewLeft() << endl;
-logfile << "vt: " << session->view->getViewTop() << endl;
-logfile << "vw: " << session->view->getViewWidth() << endl;
-logfile << "vh: " << session->view->getViewHeight() << endl;
 
         // Incorrect region request
         if ( region[2] <= 0.0 || region[3] <= 0.0 || regionIzer.hasMoreTokens() || n < 4 ){
@@ -682,13 +637,6 @@ logfile << "vh: " << session->view->getViewHeight() << endl;
   int y1 = view_top;
   int x2 = view_left + session->view->getViewWidth();
   int y2 = view_top  + session->view->getViewHeight();
-
-  logfile << "x1: " << x1 << endl;
-  logfile << "y1: " << y1 << endl;
-  logfile << "x2: " << x2 << endl;
-  logfile << "y2: " << y2 << endl;
-  logfile << "im_width: " << im_width << endl;
-  logfile << "im_height: " << im_height << endl;
 
   // if the left point is beyond the image on the right side or vice versa as well as similar check for y dimension
   // then the region does not intersect with the image at all so cropping it won't help (and would in fact be an invalid crop)
