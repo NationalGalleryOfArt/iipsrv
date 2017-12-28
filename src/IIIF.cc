@@ -250,10 +250,10 @@ void IIIF::run( Session* session, const string& src )
     // Now output the info text
     stringstream header;
     header << "Server: iipsrv/" << VERSION << eof
-    //     << "Content-Type: application/ld+json" << eof
     // removed ld+json since the specs suggest it's optional and in prezi 3.0 this
     // will move to ld+json but with a profile specification as well
-           << "Content-Type: application/json" << eof
+    //     << "Content-Type: application/json" << eof
+           << "Content-Type: application/ld+json" << eof
            << "Last-Modified: " << (*session->image)->getTimestamp() << eof
            << session->response->getCacheControl() << eof;
 
