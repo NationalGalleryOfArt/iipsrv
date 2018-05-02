@@ -364,7 +364,15 @@ If the iCCP chunk appears, it must precede the first IDAT chunk, and it must als
 void PNGCompressor::write_icc_profile(unsigned char *icc_profile_buf, unsigned int icc_profile_len) {
     if ( icc_profile_buf != NULL )  {
         string profName = "icc";
-        png_set_iCCP(dest.png_ptr, dest.info_ptr, (char *) profName.c_str(), PNG_COMPRESSION_TYPE_BASE, (char *) icc_profile_buf, icc_profile_len);
+
+        // account for changes in PNG library from 1.2 to 1.5 which are the versions in RHEL6/7 respectively
+        #if PNG_LIBPNG_VER < 10500
+          png_charp icc_profile_buf_png = (png_charp) icc_profile_buf;
+        #else
+          png_const_bytep icc_profile_buf_png = (png_const_bytep) icc_profile_buf;
+        #endif
+
+        png_set_iCCP(dest.png_ptr, dest.info_ptr, (char *) profName.c_str(), PNG_COMPRESSION_TYPE_BASE, icc_profile_buf_png, icc_profile_len);
     } 
 }
 

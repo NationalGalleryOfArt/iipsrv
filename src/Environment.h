@@ -51,6 +51,7 @@
 #define IIIF_PREFIX ""; // e.g. /iiif
 
 #include <string>
+#include <zlib.h>
 
 
 /// Class to obtain environment variables
