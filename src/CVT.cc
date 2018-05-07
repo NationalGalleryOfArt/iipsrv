@@ -114,13 +114,26 @@ void CVT::send( Session* session ){
   // If we have requested that the aspect ratio be maintained, make sure the final image fits *within* the requested size.
   // Don't adjust images if we have less than 0.5% difference as this is often due to rounding in resolution levels
   if( session->view->maintain_aspect ){
-    float ratio = ((float)resampled_width/(float)view_width) / ((float)resampled_height/(float)view_height);
-    if( ratio < 0.995 ){
-      resampled_height = (unsigned int) round((((float)resampled_width/(float)view_width) * (float)view_height));
-    }
-    else if( ratio > 1.005 ){
-      resampled_width = (unsigned int) round((((float)resampled_height/(float)view_height) * (float)view_width));
-    }
+
+    float xratio = (float) resampled_width / (float) view_width; 
+    float yratio = (float) resampled_height / (float) view_height; 
+
+    // if x is the constraining dimension, then calculate resampled height accordingly
+    if ( xratio < yratio )
+      resampled_height = (unsigned int) round( xratio * (float) view_height );
+    else
+      resampled_width = (unsigned int) round( yratio * (float) view_width );
+
+    // float ratio = ((float)resampled_width/(float)view_width) / ((float)resampled_height/(float)view_height);
+    // this is resulting in improperly sized images for specific size requests - we don't want a "lock to grid" style resizing
+    // it should be pixel perfect and the aspect ratio retained to the largest extent possible - if there are rounding errors then
+    // I think the better approach would just be to get to the bottom of those problems
+    //if( ratio < 0.995 ){
+    //   resampled_height = (unsigned int) round((((float)resampled_width/(float)view_width) * (float)view_height));
+    //}
+    //else if( ratio > 1.005 ){
+    //   resampled_width = (unsigned int) round((((float)resampled_height/(float)view_height) * (float)view_width));
+    //}
   }
 
 
