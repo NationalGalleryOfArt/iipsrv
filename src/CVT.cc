@@ -107,22 +107,35 @@ void CVT::send( Session* session ){
   // If we have requested that upscaling of images be prevented adjust requested size accordingly
   // N.B. im_width and height here are from the requested resolution and not the max resolution
   if( !session->view->allow_upscaling ){
-    if(resampled_width > im_width) resampled_width = im_width;
-    if(resampled_height > im_height) resampled_height = im_height;
+    if ( resampled_width > im_width ) resampled_width = im_width;
+    if ( resampled_height > im_height ) resampled_height = im_height;
+  }
+
+  if( session->loglevel >= 5 ) {
+    *(session->logfile) << "CVT :: DEBUG: rw x rh:" << resampled_width << "x" << resampled_height << endl;
   }
 
   // If we have requested that the aspect ratio be maintained, make sure the final image fits *within* the requested size.
   // Don't adjust images if we have less than 0.5% difference as this is often due to rounding in resolution levels
   if( session->view->maintain_aspect ){
 
-    float xratio = (float) resampled_width / (float) view_width; 
-    float yratio = (float) resampled_height / (float) view_height; 
+    double xratio = (double) resampled_width / (double) view_width; 
+    double yratio = (double) resampled_height / (double) view_height; 
 
-    // if x is the constraining dimension, then calculate resampled height accordingly
-    if ( xratio < yratio )
-      resampled_height = (unsigned int) round( xratio * (float) view_height );
-    else
-      resampled_width = (unsigned int) round( yratio * (float) view_width );
+    if ( session->loglevel >= 5 ){
+        *(session->logfile) << "CVT :: DEBUG xratio X yratio:" << xratio << "x" << yratio << endl;
+        *(session->logfile) << "CVT :: DEBUG view width X view height:" << view_width << "x" << view_height << endl;
+        *(session->logfile) << "CVT :: DEBUG view left X view top:" << view_left << "x" << view_top << endl;
+        *(session->logfile) << "CVT :: DEBUG im_width X im_height:" << im_width << "x" << im_height << endl;
+    }
+
+    // bound by height, so height stays at the requested height and width is scaled accordingly
+    if ( xratio < yratio ) {
+        resampled_height = (unsigned int) round( ( (double) view_height * (double) resampled_width ) / (double) view_width );
+    }
+    else {
+        resampled_width = (unsigned int) round( ( (double) view_width * (double) resampled_height ) / (double) view_height );
+    }
 
     // float ratio = ((float)resampled_width/(float)view_width) / ((float)resampled_height/(float)view_height);
     // this is resulting in improperly sized images for specific size requests - we don't want a "lock to grid" style resizing
@@ -136,13 +149,15 @@ void CVT::send( Session* session ){
     //}
   }
 
+  if( session->loglevel >= 5 ) {
+    *(session->logfile) << "CVT :: DEBUG: rw x rh:" << resampled_width << "x" << resampled_height << endl;
+  }
 
   if( session->loglevel >= 3 ){
     *(session->logfile) << "CVT :: Requested scaled region size is " << resampled_width << "x" << resampled_height
 			<< " at resolution " << requested_res
 			<< ". Nearest existing resolution has region with size " << view_width << "x" << view_height << endl;
   }
-
 
 #ifndef DEBUG
 

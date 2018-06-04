@@ -279,7 +279,7 @@ void IIIF::run( Session* session, const string& src )
     if ( izer.hasMoreTokens() ){
 
       // Our region parameters
-      float region[4];
+      double region[4];
 
       // Get our region string and convert to lower case if necessary
       string regionString = izer.nextToken();
@@ -295,12 +295,12 @@ void IIIF::run( Session* session, const string& src )
       // Square region export using centered crop
       else if (regionString == "square" ){
         if ( height > width ){
-	  float h = (float)width/(float)height;
+	  double h = (double) width/ (double) height;
 	  session->view->setViewTop( (1-h)/2.0 );
 	  session->view->setViewHeight( h );
         }
 	else if ( width > height ){
-	  float w = (float)height/(float)width;
+	  double w = (double) height / (double) width;
 	  session->view->setViewLeft( (1-w)/2.0 );
 	  session->view->setViewWidth( w );
         }
@@ -328,8 +328,8 @@ void IIIF::run( Session* session, const string& src )
         }
 
         // Define our denominators as our session view expects a ratio, not pixel values
-        //float wd = (float)width;
-        //float hd = (float)height;
+        //double wd = (double) width;
+        //double hd = (double) height;
 
         int x1check = 0; // upper left corner of region
         int y1check = 0; 
@@ -372,10 +372,10 @@ void IIIF::run( Session* session, const string& src )
         int heightinpix = y2check-y1check;
 
         // and finally, we set this now guaranteed valid region to a proportion of the original image
-        session->view->setViewLeft(     (float) x1check         / (float) width );
-        session->view->setViewTop(      (float) y1check         / (float) height );
-        session->view->setViewWidth(    (float) widthinpix      / (float) width );  
-        session->view->setViewHeight(   (float) heightinpix     / (float) height ); 
+        session->view->setViewLeft(     (double) x1check         / (double) width );
+        session->view->setViewTop(      (double) y1check         / (double) height );
+        session->view->setViewWidth(    (double) widthinpix      / (double) width );  
+        session->view->setViewHeight(   (double) heightinpix     / (double) height ); 
 
         // Incorrect region request
         if ( region[2] <= 0.0 || region[3] <= 0.0 || regionIzer.hasMoreTokens() || n < 4 ){
@@ -402,8 +402,13 @@ void IIIF::run( Session* session, const string& src )
       // Calculate the width and height of our region
       requested_width = session->view->getViewWidth();
       requested_height = session->view->getViewHeight();
-      float ratio = (float)requested_width / (float)requested_height;
+      double ratio = (double) requested_width / (double) requested_height;
       unsigned int max_size = session->view->getMaxSize();
+
+      if ( session->loglevel >= 5 ){
+        *(session->logfile) << "IIIF :: DEBUG: Requested Width I: " << requested_width << endl;
+        *(session->logfile) << "IIIF :: DEBUG: Requested Height I: " << requested_height << endl;
+      }
 
       // "full" request
       if ( sizeString == "full" ){
@@ -413,7 +418,7 @@ void IIIF::run( Session* session, const string& src )
       // "pct:n" request
       else if ( sizeString.substr(0, 4) == "pct:" ){
 
-        float scale;
+        double scale;
         istringstream i( sizeString.substr( sizeString.find_first_of(":") + 1, string::npos ) );
         if ( !(i >> scale) ) throw invalid_argument( "invalid size" );
 
@@ -440,7 +445,7 @@ void IIIF::run( Session* session, const string& src )
         else if ( pos == 0 ){
           istringstream i( sizeString.substr( 1, string::npos ) );
           if ( !(i >> requested_height) ) throw invalid_argument( "invalid height" );
-	  requested_width = round( (float)requested_height * ratio );
+	  requested_width = ceil( (double) requested_height * ratio );
 	  // Maintain aspect ratio in this case
  	  session->view->maintain_aspect = true;
         }
@@ -450,7 +455,7 @@ void IIIF::run( Session* session, const string& src )
         else if ( pos == sizeString.length() - 1 ){
           istringstream i( sizeString.substr( 0, string::npos - 1 ) );
           if ( !(i >> requested_width ) ) throw invalid_argument( "invalid width" );
-	  requested_height = round( (float)requested_width / ratio );
+	  requested_height = ceil( (double) requested_width / ratio );
 	  // Maintain aspect ratio in this case
  	  session->view->maintain_aspect = true;
         }
@@ -465,20 +470,76 @@ void IIIF::run( Session* session, const string& src )
         }
       }
 
+      if ( session->loglevel >= 5 ){
+        *(session->logfile) << "IIIF :: DEBUG: Ratio A: " << ratio << endl;
+        *(session->logfile) << "IIIF :: DEBUG: Requested Width A: " << requested_width << endl;
+        *(session->logfile) << "IIIF :: DEBUG: Requested Height A: " << requested_height << endl;
+      }
+
       if ( requested_width == 0 || requested_height == 0 ){
         throw invalid_argument( "IIIF: invalid size" );
       }
 
+      // calculate alternative sizes based on the max_size set and find the smallest of all three boxes
+      // setting width to max_size
+      unsigned int new_w = requested_width;
+      unsigned int new_h = requested_height;
+
+      // constrain the width and height to max_size
+      if ( requested_width > max_size)
+        new_w = max_size;
+      if ( requested_height > max_size)
+        new_h = max_size;
+
+      if ( session->loglevel >= 5 ){
+        *(session->logfile) << "IIIF :: DEBUG: New Width A: " << new_w << endl;
+        *(session->logfile) << "IIIF :: DEBUG: New Height A: " << new_h << endl;
+      }
+
+      // if we need to maintain the aspect ratio of the original image, then scale either the width or height
+      // accordingly
+      if ( session->view->maintain_aspect ) {
+        if (ratio > 1.0)
+            new_h = round( (double) new_w / ratio );
+        else 
+            new_w = round( (double) new_h * ratio );
+      }
+
+      // and finally, set the requested width and height to the lesser of the requested 
+      // and constrained (by max_size and / or maintain aspect) width and height
+      if ( new_w < requested_width )
+        requested_width = new_w;
+      if ( new_h < requested_height )
+        requested_height = new_h;
+
+      if ( session->loglevel >= 5 ){
+        *(session->logfile) << "IIIF :: DEBUG: New Width B: " << new_w << endl;
+        *(session->logfile) << "IIIF :: DEBUG: New Height B: " << new_h << endl;
+      }
+
+// ratio is the ratio of the view (the initial image - in this case it's 3791/4480 = 0.86...)
+// at this point, rw = 800 and rh=3000 which is the user requested width/height so that needs to be scaled
+// accordingly
+
+// MAX_CVT in our case is 2048 - so that's the largest IMAGE that can be returned
+// THIS IS A PROBLEM WHEN CALLING THNIGS LIKE 800,3000 it's BLOWING UP
       // Limit our requested size to the maximum allowable size if necessary
-      if( requested_width > max_size || requested_height > max_size ){
-	if( ratio > 1.0 ){
+      /*if( requested_width > max_size || requested_height > max_size ){
+	if( ratio > 1.0 ){ // if wider than taller
 	  requested_width = max_size;
 	  requested_height = session->view->maintain_aspect ? round(max_size*ratio) : max_size;
 	}
-	else{
+	else{ // taller than wider
 	  requested_height = max_size;
 	  requested_width = session->view->maintain_aspect ? round(max_size/ratio) : max_size;
 	}
+      }
+        */
+
+      if ( session->loglevel >= 5 ){
+        *(session->logfile) << "IIIF :: DEBUG: Ratio B: " << ratio << endl;
+        *(session->logfile) << "IIIF :: DEBUG: Requested Width B: " << requested_width << endl;
+        *(session->logfile) << "IIIF :: DEBUG: Requested Height B: " << requested_height << endl;
       }
 
       session->view->setRequestWidth( requested_width );
@@ -503,8 +564,8 @@ void IIIF::run( Session* session, const string& src )
         rotationString.erase(0, 1);
       }
 
-      // Convert our string to a float
-      float rotation = 0;
+      // Convert our string to a double
+      double rotation = 0;
       istringstream i( rotationString );
       if ( !(i >> rotation) ) throw invalid_argument( "IIIF: invalid rotation" );
 

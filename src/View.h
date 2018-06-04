@@ -33,8 +33,7 @@
 #include "../windows/Time.h"
 #endif
 
-
-
+extern ofstream logfile;
 
 /// Class to intelligently handle Image Transforms
 
@@ -44,7 +43,7 @@ class View{
  private:
 
   // Resolution independent x,y,w,h region viewport
-  float view_left, view_top, view_width, view_height; /// viewport
+  double view_left, view_top, view_width, view_height; /// viewport
 
   int resolution;                             /// Requested resolution
   unsigned int max_resolutions;               /// Total available resolutions
@@ -177,27 +176,27 @@ class View{
 
   /// Return the scaling required in case our requested width or height is in between available resolutions
   /* @return scaling factor */
-  float getScale();
+  double getScale();
 
 
   /// Set the left co-ordinate of the viewport
   /** @param x left resolution independent co-ordinate */
-  void setViewLeft( float x );
+  void setViewLeft( double x );
 
 
   /// Set the top co-ordinate of the viewport
   /** @param y top resolution independent co-ordinate */
-  void setViewTop( float y );
+  void setViewTop( double y );
 
 
   /// Set the width co-ordinate of the viewport
   /** @param w width resolution independent co-ordinate */
-  void setViewWidth( float w );
+  void setViewWidth( double w );
 
 
   /// Set the height co-ordinate of the viewport
   /** @param h height resolution independent co-ordinate */
-  void setViewHeight( float h );
+  void setViewHeight( double h );
 
 
   /// Set the source image pixel size

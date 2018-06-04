@@ -62,8 +62,8 @@ unsigned int View::getResolution(float oversamplingFactor ){
   resolution = max_resolutions - 1;
 
   // Note that we use floor() as that is how our resolutions are calculated
-  if( requested_width ) View::calculateResolution( width, floor((float)requested_width*oversamplingFactor/(float)view_width) );
-  if( requested_height ) View::calculateResolution( height, floor((float)requested_height*oversamplingFactor/(float)view_height) );
+  if( requested_width ) View::calculateResolution( width, floor((double)requested_width*oversamplingFactor/(double)view_width) );
+  if( requested_height ) View::calculateResolution( height, floor((double)requested_height*oversamplingFactor/(double)view_height) );
 
   res_width = width;
   res_height = height;
@@ -75,7 +75,7 @@ unsigned int View::getResolution(float oversamplingFactor ){
   }
 
   // Check if we need to use a smaller resolution due to our max size limit
-  float scale = getScale();
+  double scale = getScale();
 
   if( (res_width*view_width*scale > max_size) || (res_height*view_height*scale > max_size) ){
     int dimension;
@@ -100,7 +100,7 @@ unsigned int View::getResolution(float oversamplingFactor ){
 }
 
 
-float View::getScale(){
+double View::getScale(){
 
   unsigned int rw;
   unsigned int rh;
@@ -115,9 +115,9 @@ float View::getScale(){
   else rh = requested_height;
 
 
-  float scale = static_cast<float>(rw) / static_cast<float>(width);
+  double scale = static_cast<double>(rw) / static_cast<double>(width);
 
-  if( static_cast<float>(rh) / static_cast<float>(res_height) < scale ) scale = static_cast<float>(rh) / static_cast<float>(res_height);
+  if( static_cast<double>(rh) / static_cast<double>(res_height) < scale ) scale = static_cast<double>(rh) / static_cast<double>(res_height);
 
 
   // Sanity check
@@ -127,21 +127,21 @@ float View::getScale(){
 }
 
 
-void View::setViewLeft( float x ) {
+void View::setViewLeft( double x ) {
   if( x > 1.0 ) view_left = 1.0;
   else if( x < 0.0 ) view_left = 0.0;
   else view_left = x;
 }
 
 
-void View::setViewTop( float y ) {
+void View::setViewTop( double y ) {
   if( y > 1.0 ) view_top = 1.0;
   else if( y < 0.0 ) view_top = 0.0;
   else view_top = y;
 }
 
 
-void View::setViewWidth( float w ) {
+void View::setViewWidth( double w ) {
   // Crop region widths > 100% of image size
   if( view_left+w > 1.0 ) w = 1.0-view_left;
 
@@ -152,7 +152,7 @@ void View::setViewWidth( float w ) {
 }
 
 
-void View::setViewHeight( float h ) {
+void View::setViewHeight( double h ) {
   // Crop region heights > 100% of image size
   //if( view_height+h > 1.0 ) h = 1.0-view_height;
 
@@ -221,7 +221,7 @@ unsigned int View::getRequestWidth(){
   unsigned int w = requested_width;
   if( requested_width == 0 ){
     if( requested_height != 0 ){
-      w = (unsigned int) round( (float)(getViewWidth()*requested_height) / (float)getViewHeight() );
+      w = (unsigned int) round( (double)(getViewWidth()*requested_height) / (double)getViewHeight() );
     }
 
     // If no width or height has been set, use the full image size
@@ -242,7 +242,7 @@ unsigned int View::getRequestHeight(){
   unsigned int h = requested_height;
   if( requested_height == 0 ){
     if( requested_width != 0 ){
-      h = (unsigned int) round( (float)(getViewHeight()*requested_width) / (float)getViewWidth() );
+      h = (unsigned int) round( (double)(getViewHeight()*requested_width) / (double)getViewWidth() );
     }
 
     // If no width or height has been set, use the full image size
