@@ -117,36 +117,39 @@ void CVT::send( Session* session ){
 
   // If we have requested that the aspect ratio be maintained, make sure the final image fits *within* the requested size.
   // Don't adjust images if we have less than 0.5% difference as this is often due to rounding in resolution levels
+
+
   if( session->view->maintain_aspect ){
 
-    double xratio = (double) resampled_width / (double) view_width; 
-    double yratio = (double) resampled_height / (double) view_height; 
+    if ( session->loglevel >= 5 ){
+        *(session->logfile) << "CVT :: DEBUG: view width X view height:" << view_width << "x" << view_height << endl;
+        *(session->logfile) << "CVT :: DEBUG: view left X view top:" << view_left << "x" << view_top << endl;
+        *(session->logfile) << "CVT :: DEBUG: im_width X im_height:" << im_width << "x" << im_height << endl;
+    }
+
+    // calculate potential new constraints in both width and height dimensions holding the other dimension constant
+    // the dimension with the least difference (usually zero difference at this point in processing) is the one that needs to be recalculated
+    unsigned int new_resampled_height = (unsigned int) round( ( (double) view_height * (double) resampled_width ) / (double) view_width );
+    unsigned int new_resampled_width  = (unsigned int) round( ( (double) view_width * (double) resampled_height ) / (double) view_height );
 
     if ( session->loglevel >= 5 ){
-        *(session->logfile) << "CVT :: DEBUG xratio X yratio:" << xratio << "x" << yratio << endl;
-        *(session->logfile) << "CVT :: DEBUG view width X view height:" << view_width << "x" << view_height << endl;
-        *(session->logfile) << "CVT :: DEBUG view left X view top:" << view_left << "x" << view_top << endl;
-        *(session->logfile) << "CVT :: DEBUG im_width X im_height:" << im_width << "x" << im_height << endl;
+        *(session->logfile) << "CVT :: DEBUG: new resampled width X new resampled height:" << new_resampled_width << "x" << new_resampled_height << endl;
     }
 
-    // bound by height, so height stays at the requested height and width is scaled accordingly
-    if ( xratio < yratio ) {
-        resampled_height = (unsigned int) round( ( (double) view_height * (double) resampled_width ) / (double) view_width );
+    // if we calculated a larger dimension for height than allowed, the height is maximized and width reset
+    if ( new_resampled_height > resampled_height ) {
+        if ( session->loglevel >= 5 ) {
+            *(session->logfile) << "CVT :: DEBUG: Resetting width" << endl;
+        }
+        resampled_width = new_resampled_width;
     }
+    // otherwise width is maximized and height is calculated
     else {
-        resampled_width = (unsigned int) round( ( (double) view_width * (double) resampled_height ) / (double) view_height );
+        if ( session->loglevel >= 5 ) {
+            *(session->logfile) << "CVT :: DEBUG: Resetting height" << endl;
+        }
+        resampled_height = new_resampled_height;
     }
-
-    // float ratio = ((float)resampled_width/(float)view_width) / ((float)resampled_height/(float)view_height);
-    // this is resulting in improperly sized images for specific size requests - we don't want a "lock to grid" style resizing
-    // it should be pixel perfect and the aspect ratio retained to the largest extent possible - if there are rounding errors then
-    // I think the better approach would just be to get to the bottom of those problems
-    //if( ratio < 0.995 ){
-    //   resampled_height = (unsigned int) round((((float)resampled_width/(float)view_width) * (float)view_height));
-    //}
-    //else if( ratio > 1.005 ){
-    //   resampled_width = (unsigned int) round((((float)resampled_height/(float)view_height) * (float)view_width));
-    //}
   }
 
   if( session->loglevel >= 5 ) {
