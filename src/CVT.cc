@@ -133,6 +133,7 @@ void CVT::send( Session* session ){
     unsigned int new_resampled_width  = (unsigned int) round( ( (double) view_width * (double) resampled_height ) / (double) view_height );
 
     if ( session->loglevel >= 5 ){
+        *(session->logfile) << "CVT :: DEBUG: resampled width X resampled height:" << resampled_width << "x" << resampled_height << endl;
         *(session->logfile) << "CVT :: DEBUG: new resampled width X new resampled height:" << new_resampled_width << "x" << new_resampled_height << endl;
     }
 
@@ -143,8 +144,8 @@ void CVT::send( Session* session ){
         }
         resampled_width = new_resampled_width;
     }
-    // otherwise width is maximized and height is calculated
-    else {
+    // otherwise only recalculate the height if the new width is not already maximized
+    else if ( new_resampled_width > resampled_width ) {
         if ( session->loglevel >= 5 ) {
             *(session->logfile) << "CVT :: DEBUG: Resetting height" << endl;
         }
