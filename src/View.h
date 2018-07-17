@@ -84,6 +84,7 @@ class View{
   std::vector< std::vector<float> > ctw;      /// Colour twist matrix
   int flip;                                   /// Flip (1=horizontal, 2=vertical)
   bool maintain_aspect;                       /// Indicate whether aspect ratio should be maintained
+  bool bounding_box_constraint;               /// Indicate whether bounding box calculations need to be performed
   bool allow_upscaling;                       /// Indicate whether images may be served larger than the source file
 
 
@@ -102,6 +103,7 @@ class View{
     max_layers = 0; layers = 0;
     rotation = 0.0; flip = 0;
     maintain_aspect = true;
+    bounding_box_constraint = false;
     allow_upscaling = true;
     colourspace = NONE;
   };

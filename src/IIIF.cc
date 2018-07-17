@@ -163,6 +163,10 @@ void IIIF::run( Session* session, const string& src )
   session->view->setImageSize( width, height );
   session->view->setMaxResolutions( numResolutions );
 
+  // there's only one type of IIIF size request (w,h) that doesn't maintain the aspect ratio
+  // defaults to true in view, but might as well be explict
+  session->view->maintain_aspect = true;
+
   // PARSE INPUT PARAMETERS
 
   // info.json
@@ -429,10 +433,17 @@ void IIIF::run( Session* session, const string& src )
       // "w,h", "w,", ",h", "!w,h" requests
       else{
 
+        bool bounding_box_flag = false;
+
         // !w,h request - remove !, remember it and continue as if w,h request
-        if ( sizeString.substr(0, 1) == "!" ) sizeString.erase(0, 1);
-        // Otherwise tell our view to break aspect ratio
-        else session->view->maintain_aspect = false;
+        if ( sizeString.substr(0, 1) == "!" ) {
+            sizeString.erase(0, 1);
+            // we might have a bounding box constraint to calculate in CVT if both w and h are specified
+            bounding_box_flag = true;
+        }
+        // Otherwise tell our view to break aspect ratio (will be set back if only w or h are specified but not both)
+        else 
+            session->view->maintain_aspect = false;
 
         size_t pos = sizeString.find_first_of(",");
 
@@ -446,7 +457,7 @@ void IIIF::run( Session* session, const string& src )
           istringstream i( sizeString.substr( 1, string::npos ) );
           if ( !(i >> requested_height) ) throw invalid_argument( "invalid height" );
 	  requested_width = ceil( (double) requested_height * ratio );
-	  // Maintain aspect ratio in this case
+	  // set Maintain aspect ratio in this case since it might have been unset above
  	  session->view->maintain_aspect = true;
         }
 
@@ -456,7 +467,7 @@ void IIIF::run( Session* session, const string& src )
           istringstream i( sizeString.substr( 0, string::npos - 1 ) );
           if ( !(i >> requested_width ) ) throw invalid_argument( "invalid width" );
 	  requested_height = ceil( (double) requested_width / ratio );
-	  // Maintain aspect ratio in this case
+	  // Maintain aspect ratio in this case since it might have been unset above
  	  session->view->maintain_aspect = true;
         }
 
@@ -467,6 +478,9 @@ void IIIF::run( Session* session, const string& src )
           i.clear();
           i.str( sizeString.substr( pos + 1, string::npos ) );
           if ( !(i >> requested_height) ) throw invalid_argument( "invalid height" );
+          // if we had a bounding box flag, then we have some bounding box constraints to impose
+          if ( bounding_box_flag )
+            session->view->bounding_box_constraint = true;
         }
       }
 
@@ -496,9 +510,9 @@ void IIIF::run( Session* session, const string& src )
         *(session->logfile) << "IIIF :: DEBUG: New Height A: " << new_h << endl;
       }
 
-      // if we need to maintain the aspect ratio of the original image, then scale either the width or height
-      // accordingly
-      if ( session->view->maintain_aspect ) {
+      // if we need to maintain the aspect ratio of the original image but are not going to be imposing
+      // a bounding box constraint, then scale either the width or height accordingly
+      if ( session->view->maintain_aspect && !session->view->bounding_box_constraint ) {
         if (ratio > 1.0)
             new_h = round( (double) new_w / ratio );
         else 
@@ -522,7 +536,7 @@ void IIIF::run( Session* session, const string& src )
 // accordingly
 
 // MAX_CVT in our case is 2048 - so that's the largest IMAGE that can be returned
-// THIS IS A PROBLEM WHEN CALLING THNIGS LIKE 800,3000 it's BLOWING UP
+// THIS IS A PROBLEM WHEN MAKING CALLS LIKE 800,3000 since it's BLOWING UP LARGER
       // Limit our requested size to the maximum allowable size if necessary
       /*if( requested_width > max_size || requested_height > max_size ){
 	if( ratio > 1.0 ){ // if wider than taller

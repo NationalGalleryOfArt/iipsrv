@@ -119,7 +119,8 @@ void CVT::send( Session* session ){
   // Don't adjust images if we have less than 0.5% difference as this is often due to rounding in resolution levels
 
 
-  if( session->view->maintain_aspect ){
+  // bounding_box_constraint should only be set in cases where !x,y is present in a IIIF request
+  if( session->view->bounding_box_constraint ){
 
     if ( session->loglevel >= 5 ){
         *(session->logfile) << "CVT :: DEBUG: view width X view height:" << view_width << "x" << view_height << endl;
@@ -129,28 +130,23 @@ void CVT::send( Session* session ){
 
     // calculate potential new constraints in both width and height dimensions holding the other dimension constant
     // the dimension with the least difference (usually zero difference at this point in processing) is the one that needs to be recalculated
-    unsigned int new_resampled_height = (unsigned int) round( ( (double) view_height * (double) resampled_width ) / (double) view_width );
-    unsigned int new_resampled_width  = (unsigned int) round( ( (double) view_width * (double) resampled_height ) / (double) view_height );
+    unsigned int rw2 = (unsigned int) round( ( (double) view_width * (double) resampled_height ) / (double) view_height );
+    unsigned int rh2 = (unsigned int) round( ( (double) view_height * (double) resampled_width ) / (double) view_width );
+
+    (*session->logfile) << "MOD1: " << (double) view_width * (double) resampled_height / (double) view_height << endl;
 
     if ( session->loglevel >= 5 ){
         *(session->logfile) << "CVT :: DEBUG: resampled width X resampled height:" << resampled_width << "x" << resampled_height << endl;
-        *(session->logfile) << "CVT :: DEBUG: new resampled width X new resampled height:" << new_resampled_width << "x" << new_resampled_height << endl;
+        *(session->logfile) << "CVT :: DEBUG: resampled width 2 X resampled height 2:" << rw2 << "x" << rh2 << endl;
     }
 
-    // if we calculated a larger dimension for height than allowed, the height is maximized and width reset
-    if ( new_resampled_height > resampled_height ) {
-        if ( session->loglevel >= 5 ) {
-            *(session->logfile) << "CVT :: DEBUG: Resetting width" << endl;
-        }
-        resampled_width = new_resampled_width;
-    }
-    // otherwise only recalculate the height if the new width is not already maximized
-    else if ( new_resampled_width > resampled_width ) {
-        if ( session->loglevel >= 5 ) {
-            *(session->logfile) << "CVT :: DEBUG: Resetting height" << endl;
-        }
-        resampled_height = new_resampled_height;
-    }
+    // assign the final size based on whichever image has smaller area - this is the image that fits the bounding box
+    if ( rw2 * resampled_height < resampled_width * rh2 ) 
+        resampled_width = rw2;
+    else
+        resampled_height = rh2;
+    if ( session->loglevel >= 5 )
+        *(session->logfile) << "CVT :: DEBUG: final resampled width X resampled height:" << resampled_width << "x" << resampled_height << endl;
   }
 
   if( session->loglevel >= 5 ) {
