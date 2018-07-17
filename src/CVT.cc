@@ -133,8 +133,6 @@ void CVT::send( Session* session ){
     unsigned int rw2 = (unsigned int) round( ( (double) view_width * (double) resampled_height ) / (double) view_height );
     unsigned int rh2 = (unsigned int) round( ( (double) view_height * (double) resampled_width ) / (double) view_width );
 
-    (*session->logfile) << "MOD1: " << (double) view_width * (double) resampled_height / (double) view_height << endl;
-
     if ( session->loglevel >= 5 ){
         *(session->logfile) << "CVT :: DEBUG: resampled width X resampled height:" << resampled_width << "x" << resampled_height << endl;
         *(session->logfile) << "CVT :: DEBUG: resampled width 2 X resampled height 2:" << rw2 << "x" << rh2 << endl;
