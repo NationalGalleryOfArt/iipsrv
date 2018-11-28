@@ -1,0 +1,7 @@
+This script uses the vips image utilities to generate a pyramidal tiff from a source image.  The script tries to handle alpha channels and color profile conversion to sRGB in a reasonable way.
+
+To generate a pyramidal tiff, first install vips, the tiffcp utility, and image magick (for the identify command) then run:
+
+tiff_to_pyramid.bash <tmpdir> <full path to image source> <full path to output target> 
+
+This script could be improved by removing a few site specific settings such as the location of the sRGB profile
