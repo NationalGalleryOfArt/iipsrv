@@ -68,9 +68,10 @@ fi
 if [[ ${CHANNELS} == "gray" ]]; then
     ICCPROFILE=$(/usr/bin/identify -format "%[profile:icc]\n" ${input}[0] 2>/dev/null)
     echo "icc profile description: ${ICCPROFILE}"
-    # in the case of gray with no embedded color profile, we can't just apply sRGB with the icc_transform because sRGB isn't an appropriate profile for the icc_transform command
-    # so we have to call vipsthumbnail instead which does some magick behind the scenes
-    if [ -z "${ICCPROFILE}" ]; then
+    # in the case of gray with no embedded color profile or with an embedded sRGB profile that was probably erroneously applied to the image, 
+    # we can't just apply sRGB with the icc_transform because sRGB isn't an appropriate profile for the icc_transform command
+    # so we have to call vipsthumbnail instead which does some magick behind the scenes to properly convert between the profiles
+    if [ -z "${ICCPROFILE}" ] || [ "${ICCPROFILE}" == "sRGB Profile" ]; then
         W2=$(/usr/local/bin/vipsheader -f width ${input}[0] 2>/dev/null)
         H2=$(/usr/local/bin/vipsheader -f height ${input}[0] 2>/dev/null)
         echo "/usr/local/bin/vipsthumbnail $input[0] --eprofile=/usr/local/nga/etc/sRGBProfile.icc --size ${W2}x${H2} --intent perceptual -o ${tmpprefix}.tif[compression=none,strip]"
@@ -139,4 +140,3 @@ HF=$(/usr/local/bin/vipsheader -f height $outfile)
 
 # final check
 exit $(( WF == W && HF == H ))
-
