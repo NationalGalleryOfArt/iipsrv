@@ -399,7 +399,7 @@ RawTile OpenJPEGImage::getRegion(int ha, int va, unsigned int res, int layers,
     throw file_error("ERROR :: OpenJPEG :: Unsupported number of bits");
   }
 
-  rawtile.dataLength = w * h * channels * obpc / 8;
+  rawtile.dataLength = w * h * channels * ( obpc / 8 );
   rawtile.filename = getImagePath();
   rawtile.timestamp = timestamp;
 

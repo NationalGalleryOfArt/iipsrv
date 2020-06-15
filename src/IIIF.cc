@@ -148,6 +148,32 @@ void IIIF::run( Session* session, const string& src )
   FIF fif;
   fif.run( session, filename );
 
+  // exit prematurely if there was an error or a redirect
+  if ( session->response->imageSent() ) 
+    return;
+
+  // dpb delete below
+  // this should return true or false and false would indicate a redirect
+  // e.g. if ( !fif.run ) return;
+  /*int newRes = fif.run( session, filename );
+  if ( newRes < 0 ) {
+    // unauthorized response
+    string header = string( "Status: 403 Forbidden\r\n" )
+                    + "Server: iipsrv/" + VERSION + "\r\n"
+                    + "\r\n";
+    session->out->printf( (const char*) header.c_str() );
+    session->response->setImageSent();
+    return;
+  }
+  else if ( newRes > 0 ) {
+      string request_uri = session->headers["REQUEST_URI"];
+      *(session->logfile) << ":::::::::::::::::::::::::: " << request_uri << " :::::::::::::::::::::::::::::::" << endl;
+        
+    // redirect to 
+    // return;
+  }
+    */
+
   // Reload our filename
   filename = (*session->image)->getImagePath();
 

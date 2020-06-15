@@ -53,6 +53,7 @@ class IIPResponse{
   std::string error;               // Error message
   std::string cors;                // CORS (Cross-Origin Resource Sharing) setting
   bool sent;                       // Indicate whether a response has been sent
+  bool nocache;                    // Indicate whether a response should not be cached in memory
 
 
  public:
@@ -148,6 +149,12 @@ class IIPResponse{
 
   /// Set the sent flag indicating that some sort of response has been sent
   void setImageSent() { sent = true; };
+
+  /// Set the no memcache in order to instruct the server not to cache this request
+  void setNotCacheable() { nocache = true; };
+
+  /// Set the no memcache in order to instruct the server not to cache this request
+  bool isCacheable() { return !nocache; };
 
 
   /// Indicate whether a response has been sent

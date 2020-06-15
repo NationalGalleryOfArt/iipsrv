@@ -38,6 +38,7 @@ IIPResponse::IIPResponse(){
   cors = "";
   eof = "\r\n";
   sent = false;
+  nocache = false;
 }
 
 

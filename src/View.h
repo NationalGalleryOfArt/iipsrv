@@ -53,6 +53,8 @@ class View{
   unsigned int max_size;                      /// Maximum viewport dimension
   unsigned int max_sample_size;               /// Maximum resolution to be used for a particular 
                                               /// image request to prevent unauthorized access as necessary
+  unsigned int enforce_metadata_restriction;  /// whether or not to enforce sampling restrictions based on embedded image metadata
+
   unsigned int requested_width;               /// Width requested by WID command
   unsigned int requested_height;              /// Height requested by HEI command
   float contrast;                             /// Contrast adjustment requested by CNT command
@@ -130,6 +132,14 @@ class View{
   /// Get the maximum sampling size to be used when reading tiles
   /* @return maximum sampling size */
   unsigned int getMaxSampleSize(){ return max_sample_size; };
+
+  /// Set whether sampling restrictions should be enforced
+  /** @param e whether or not to enforce sampling restrictions based on embedded image metadata */
+  void setEnforceEmbeddedMaxSample( unsigned int b ){ enforce_metadata_restriction = b; };
+
+  /// Get whether sampling restrictions should be enforced or not
+  /* @return 0 or 1 depending on whether sampling restrictions based on embedded image metadata should be enforced or not */
+  unsigned int getEnforceEmbeddedMaxSample(){ return enforce_metadata_restriction; };
   
 
   /// Set the allow_upscaling flag

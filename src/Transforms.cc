@@ -152,7 +152,7 @@ void filter_normalize( RawTile& in, vector<float>& max, vector<float>& min ) {
   // Assign our new buffer and modify some info
   in.data = normdata;
   in.bpc = 32;
-  in.dataLength = np * in.bpc / 8;
+  in.dataLength = np * ( in.bpc / 8 );
 
 }
 
@@ -224,7 +224,7 @@ void filter_shade( RawTile& in, int h_angle, int v_angle ){
 
   in.data = buffer;
   in.channels = 1;
-  in.dataLength = in.width * in.height * in.bpc / 8;
+  in.dataLength = in.width * in.height * ( in.bpc / 8 );
 }
 
 
@@ -427,7 +427,7 @@ void filter_cmap( RawTile& in, enum cmap_type cmap ){
   delete[] (float*) in.data;
   in.data = outptr;
   in.channels = out_chan;
-  in.dataLength = ndata * out_chan * in.bpc / 8;
+  in.dataLength = ndata * out_chan * ( in.bpc / 8 );
 }
 
 
@@ -435,7 +435,7 @@ void filter_cmap( RawTile& in, enum cmap_type cmap ){
 // Inversion function
 void filter_inv( RawTile& in ){
 
-  unsigned int np = in.dataLength * 8 / in.bpc;
+  unsigned int np = in.dataLength * float ( 8.0 / in.bpc );
   float *infptr = (float*) in.data;
 
   // Loop through our pixels for floating values
@@ -478,6 +478,7 @@ void filter_interpolate_nearestneighbour( RawTile& in, unsigned int resampled_wi
   float yscale = (float)height / (float)resampled_height;
 
   for( unsigned int j=0; j<resampled_height; j++ ){
+
     for( unsigned int i=0; i<resampled_width; i++ ){
 
       // Indexes in the current pyramid resolution and resampled spaces
@@ -485,8 +486,8 @@ void filter_interpolate_nearestneighbour( RawTile& in, unsigned int resampled_wi
       unsigned int ii = (unsigned int) floorf(i*xscale);
       unsigned int jj = (unsigned int) floorf(j*yscale);
       unsigned int pyramid_index = (unsigned int) channels * ( ii + jj*width );
-
       unsigned int resampled_index = (i + j*resampled_width)*channels;
+
       for( int k=0; k<in.channels; k++ ){
 	output[resampled_index+k] = input[pyramid_index+k];
       }
@@ -499,7 +500,7 @@ void filter_interpolate_nearestneighbour( RawTile& in, unsigned int resampled_wi
   // Correctly set our Rawtile info
   in.width = resampled_width;
   in.height = resampled_height;
-  in.dataLength = resampled_width * resampled_height * channels * in.bpc/8;
+  in.dataLength = resampled_width * resampled_height * channels * ( in.bpc/8 );
   in.data = output;
 }
 
@@ -575,7 +576,7 @@ void filter_interpolate_bilinear( RawTile& in, unsigned int resampled_width, uns
   // Correctly set our Rawtile info
   in.width = resampled_width;
   in.height = resampled_height;
-  in.dataLength = resampled_width * resampled_height * channels * in.bpc/8;
+  in.dataLength = resampled_width * resampled_height * channels * ( in.bpc/8 );
   in.data = output;
 }
 
@@ -602,7 +603,7 @@ void filter_contrast( RawTile& in, float c ){
   delete[] (float*) in.data;
   in.data = buffer;
   in.bpc = 8;
-  in.dataLength = np * in.bpc/8;
+  in.dataLength = np * ( in.bpc/8 );
 }
 
 
@@ -861,7 +862,7 @@ void filter_flatten( RawTile& in, int bands ){
   }
 
   in.channels = bands;
-  in.dataLength = ni * in.bpc/8;
+  in.dataLength = ni * ( in.bpc/8 );
 }
 
 
@@ -929,7 +930,7 @@ void filter_interpolate_lanczos( RawTile& in, int resampled_width, int resampled
     // Pointer to input buffer
     byte *input = (byte*) in.data;
 
-    byte bytesPerColor = in.bpc / 8;
+    byte bytesPerColor = ( in.bpc / 8 );
     byte bytesPerPixel = bytesPerColor * in.channels;
 
     // pitch is the number of bytes in a scan line
@@ -986,11 +987,12 @@ void filter_interpolate_lanczos( RawTile& in, int resampled_width, int resampled
      we don't even bother checking whether the size of the image is below a parallel threshold - it pretty much always 
      will make sense to parallelize Lanczos
     ********************************************************************************************************************/
-    #if defined(__ICC) || defined(__INTEL_COMPILER)
+    /*#if defined(__ICC) || defined(__INTEL_COMPILER)
     #pragma ivdep
     #elif defined(_OPENMP)
     #pragma omp parallel for
     #endif
+    */
     for (int y = 0; y < in.height; y++) {
 
         // since we are scaling each row we get the start of the current scan line
@@ -1008,6 +1010,7 @@ void filter_interpolate_lanczos( RawTile& in, int resampled_width, int resampled
             int rint = 0, gint = 0, bint = 0;
 
             for (int i = 0; i < sample_width; i++) {
+                // dies at 11 (of 14)
                 const int intWeight = xweights[x].weights[i];
                 if (intWeight != 0) {
                     rint += (intWeight * src_pixel[0]);

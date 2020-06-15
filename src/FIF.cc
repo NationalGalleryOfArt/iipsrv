@@ -21,6 +21,8 @@
 
 #include <algorithm>
 #include <sstream>
+#include <bits/stdc++.h> 
+#include <sys/stat.h>
 #include "Task.h"
 #include "URL.h"
 #include "Environment.h"
@@ -37,8 +39,11 @@
 
 using namespace std;
 
+const string SIZESEP = "__";
 
 
+// returns a potentially modified maximum number of pixels that should be used
+// when sampling this image
 void FIF::run( Session* session, const string& src ){
 
   if( session->loglevel >= 3 ) 
@@ -48,10 +53,61 @@ void FIF::run( Session* session, const string& src ){
   if( session->loglevel >= 2 ) 
     command_timer.start();
 
+  // Define our separator depending on the OS
+#ifdef WIN32
+  const string separator = "\\";
+#else
+  const string separator = "/";
+#endif
+
+  // Get our image pattern variable
+  string filesystem_prefix = Environment::getFileSystemPrefix();
 
   // Decode any URL-encoded characters from our path
   URL url( src );
   string argument = url.decode();
+
+  // special handling of regex for NGA that should be turned into a regex_replace general purpose routine 
+  // based on configuration but for now is hard-coded - this one works with uuids to transform requests for uuids
+  // into actual file name paths which are then used for loading the image file, but NOT used in URL responses back
+  // to the client since we want to hide this complexity from the client
+
+  //                $1              $2                                     $3                                        $4
+  //              first 3        second 3                               rest of uuid                              optional size
+  regex uuidre("^/?([a-z0-9]{3})([a-z0-9]{3})([a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})(?:"+SIZESEP+"(.*))?");
+  std::smatch sm;
+  std::regex_match(argument,sm,uuidre);
+  if( session->loglevel >= 5 )
+    *(session->logfile) << "FIF :: Match Count: " << sm.size() << endl;
+
+  if ( sm.size() > 0 ) {
+    string dir1 = sm[1];
+    string dir2 = sm[2];
+    string uuidfrag = sm[3];
+    string uuid = dir1 + dir2 + uuidfrag;
+    string fpath = separator + dir1 + separator + dir2 + separator + uuid;
+
+    // check for existence of this file 
+    struct stat buffer;   
+    if (stat ( (filesystem_prefix + "private/images" + fpath ).c_str(), &buffer) == 0) 
+        fpath = "/private/images" + fpath;
+    else if (stat ( (filesystem_prefix + "public/images" + fpath ).c_str(), &buffer) == 0) 
+        fpath = "/public/images" + fpath;
+
+    string sz = sm[4];
+    if ( !sz.empty() )
+        fpath = fpath + SIZESEP + sz;
+
+    argument = fpath;
+
+    *(session->logfile) << "FIF dir1: " << dir1 << endl;
+    *(session->logfile) << "FIF dir2: " << dir2 << endl;
+    *(session->logfile) << "FIF uuid: " << uuid << endl;
+    *(session->logfile) << "FIF fpath: " << fpath << endl;
+  }
+  
+  if( session->loglevel >= 5 )
+    *(session->logfile) << "FIF :: " << argument << endl;
 
   // Filter out any ../ to prevent users by-passing any file system prefix
   unsigned int n;
@@ -64,10 +120,17 @@ void FIF::run( Session* session, const string& src ){
       *(session->logfile) << "FIF :: URL decoding/filtering: " << src << " => " << argument << endl;
   }
 
+
+
+  int pos = argument.rfind(separator)+1;
+  if ( pos == string::npos )
+    pos = 0;
+  string originalFileName = argument.substr( pos, argument.length() - pos );
+  if( session->loglevel >= 5 )
+    *(session->logfile) << "FIF :: original file name " << originalFileName << endl;
+
   unsigned int max_headers_in_metadata_cache = Environment::getMaxHeadersInMetadataCache();
 
-  // Get our image pattern variable
-  string filesystem_prefix = Environment::getFileSystemPrefix();
 
   // Get our image pattern variable
   string filename_pattern = Environment::getFileNamePattern();
@@ -75,15 +138,60 @@ void FIF::run( Session* session, const string& src ){
   // Timestamp of cached image
   time_t timestamp = 0;
 
+  int maxInRequest = session->view->getMaxSampleSize();
+  int maxPixels = -1;
+
+  if( session->loglevel >= 5 )
+    *(session->logfile) << "FIF :: file name " << argument << endl;
 
   // Put the image setup into a try block as object creation can throw an exception
   try {
 
+    // see if the image filename already has a max resolution marker on it
+    // argument += "&blah=blah";
+    string::size_type st = argument.find(SIZESEP);
+    int filenameMaxPixels = 0;
+    if ( st != string::npos ) {
+        st += SIZESEP.length();
+        string::size_type e = argument.find_first_not_of("0123456789", st);
+        string::size_type l = ( e == string::npos ? argument.length()-st : e-st );
+        try {
+            filenameMaxPixels = stoi(argument.substr(st, l));
+        }
+        catch(const std::invalid_argument){ 
+            throw invalid_argument( "unsupported parameter");
+        }
+
+        // trim the filename to remove the size specification before trying to load it
+        argument = argument.substr(0,st-SIZESEP.length());
+
+        // if not yet set by the HEADER then set the max sample size based on the extended filename method, 
+        // otherwise use the header rather than the size specified in the URL
+        if ( maxInRequest == 0 ) {
+            maxInRequest = filenameMaxPixels;
+            session->view->setMaxSampleSize(maxInRequest);
+        }
+    }
+
+    int pos = argument.rfind(separator)+1;
+    if ( pos == string::npos )
+      pos = 0;
+    string revisedFileName = argument.substr( pos, argument.length() - pos );
+    if ( session->loglevel >= 5 ) {
+        *(session->logfile) << "FIF :: file name " << argument << endl;
+        *(session->logfile) << "FIF :: revised file name " << revisedFileName << endl;
+    }
+
+    // DPB - there is currently a problem with the image headers cache so we're disabling it for now
+
     // an image cache key is necessary in order to differentiate a regular image load from one 
     // that is being rendered with degraded sampling due to rights restrictions
     ostringstream ss;
-    ss << argument << "__" << session->view->getMaxSampleSize();
+    ss << argument << SIZESEP << session->view->getMaxSampleSize();
     string imageCacheKey = ss.str();
+
+    if ( session->loglevel >= 5 )
+        *(session->logfile) << "FIF :: Image cache key: " << imageCacheKey << endl;
 
     IIPImage *test;
     // first thing we do is look in cache for the image
@@ -107,11 +215,11 @@ void FIF::run( Session* session, const string& src ){
             session->imageCache->erase( session->imageCache->begin() );
         }
       }
-
-      // since we don't have an image in cache, create a new one
+      
       test = new IIPImage( argument );
       test->setFileNamePattern( filename_pattern );
       test->setFileSystemPrefix( filesystem_prefix );
+      test->setOriginalFileName( originalFileName );
       test->Initialise();
 
     }
@@ -121,6 +229,9 @@ void FIF::run( Session* session, const string& src ){
     **************************************************************************/
 
     ImageFormat format = test->getImageFormat();
+
+    if ( session->loglevel >= 5 )
+        *(session->logfile) << "FIF :: image format: " << format << endl;
 
     // this section creates the proper subclass based on the format - however, once created, we should just be caching these
     // rather than creating a new object every time - how do we know?
@@ -142,7 +253,7 @@ void FIF::run( Session* session, const string& src ){
     }
 #endif
     else 
-      throw string( "Unsupported image type: " + argument );
+      throw string( "FIF :: Unsupported image type: " + argument );
 
     // we're done with the test image now
     delete test;
@@ -194,6 +305,95 @@ void FIF::run( Session* session, const string& src ){
     if( session->loglevel >= 3 )
       *(session->logfile) << "FIF :: Created image" << endl;
 
+    // CHECK EMBEDDED METDATA IN IMAGE FILE 
+    std::string input = (*session->image)->getMetadata("xmp");
+    if ( !input.empty() ) {
+        std::string exifTag = "nga:imgMaxPublicPixels"; // convert to a configuration parameter
+        string::size_type start = input.find("<"+exifTag+">");
+        string::size_type end = input.find("</"+exifTag+">");
+
+        if ( start != string::npos && end != string::npos ) {
+            std:string s = input.substr(start+exifTag.length()+2,end-start-exifTag.length()-2);
+            try {
+
+                maxPixels = std::stoi(s);
+
+                /*CASES: 
+                    max in HEADER           max in image
+                    none                    none                => maxSampling set to 0 
+                    0                       none                => maxSampling set to 0 so same situation
+                    600                     none                => maxSampling set to 600 so resolutions are clipped even though no restrictions in image per se
+                    1600                    none                => maxSampling set to 600 so resolutions are clipped even though no restrictions in image per se
+                    none                    640                 => maxSampling set to 0 but image says 640 - so redirect to 640 (max of image) in this case since requested is zero                 ///
+                    0                       640                 => same as above - can request 0 but it means same thing as none - cannot request zero pixels anyway
+                    600                     640                 => maxSampling set to 600 which is < 640 so let it continue without a redirect
+                    1600                    640                 => 1600 > 640 so need redirect to 640                                                                                               ///
+                    none                    0                   => cannot display this image at all - should zero restriction simply be ignored? Configuration to define how to handle this case.   ///
+                    none                    0                   => should return a 403 when configuration is set to enforce this case                                                               ///
+                    0                       0                   => cannot display this image at all - see above
+                    600                     0                   => cannot display this image at all - see above
+                    1600                    0                   => cannot display this image at all - see above
+                */
+
+                // if image sampling size restrictions are defined for this image and no sampling size was requested or 
+                // the requested sampling size is larger than the max allowable, don't cache responses to requests for this image
+                    *(session->logfile) << ":::::::::::::::::::::::::: SETTING HERE :::::::::::::::::::::::::::::::" << endl;
+                if ( maxPixels <= 0 || ( maxPixels > 0 && ( maxInRequest <= 0 || maxInRequest > maxPixels ) ) ) {
+                    *(session->logfile) << ":::::::::::::::::::::::::: SETTING NOT CACHEABLE :::::::::::::::::::::::::::::::" << endl;
+                    // disable caching of this response in all cases 
+                    session->response->setCacheControl("no-cache");
+                    session->response->setNotCacheable();
+                }
+
+                if ( maxPixels <= 0 ) { 
+                    if ( session->view->getEnforceEmbeddedMaxSample() ) {
+                        // return 403 forbidden error or instruct caller to do that
+                        string header = string( "Status: 403 Forbidden\r\n" ) + 
+                                                "Server: iipsrv/" + VERSION + "\r\n" + 
+                                                "\r\n";
+                        session->out->printf( (const char*) header.c_str() );
+                        session->response->setImageSent();
+                        session->response->setNotCacheable();
+                        return;
+                    }
+                }
+                else if ( ( maxPixels > 0 && maxInRequest <= 0 ) || ( maxPixels < maxInRequest ) )  {
+                    if ( session->view->getEnforceEmbeddedMaxSample() ) {
+                        string request_uri = session->headers["REQUEST_URI"];
+
+                        *(session->logfile) << ":::::::::::::::::::::::::: " << request_uri << " :::::::::::::::::::::::::::::::" << endl;
+                        *(session->logfile) << ":::::::::::::::::::::::::: " << argument << " :::::::::::::::::::::::::::::::" << endl;
+                        *(session->logfile) << ":::::::::::::::::::::::::: " << originalFileName << " :::::::::::::::::::::::::::::::" << endl;
+                        // request_uri.replace(request_uri.find(originalFileName), originalFileName.length(), originalFileName + SIZESEP + to_string(maxPixels));
+                        //string newFileName = originalFileName + SIZESEP + to_string(maxPixels);
+
+                        // dpb custom code to replace the uri with one that meshes with the Apache configuration on the front-end
+                        //if ( request_uri.find("iiif-private") != string::npos )
+                        //    request_uri.replace(request_uri.find(originalFileName), originalFileName.length(), originalFileName + SIZESEP + to_string(maxPixels));
+                        //    request_uri = "/iiif/" + newFileName;
+                        // request_uri.replace(request.uri.find("iiif-private/public/images/
+
+                        request_uri.replace(request_uri.find(originalFileName), originalFileName.length(), revisedFileName + SIZESEP + to_string(maxPixels));
+
+                        *(session->logfile) << ":::::::::::::::::::::::::: " << request_uri << " :::::::::::::::::::::::::::::::" << endl;
+                        string header = string( "Status: 303 See Other\r\n" ) + 
+                                                "Location: " + request_uri + "\r\n" + 
+                                                "Server: iipsrv/" + VERSION + "\r\n" + 
+                                                "\r\n";
+                        session->out->printf( (const char*) header.c_str() );
+                        session->response->setImageSent();
+                        session->response->setNotCacheable();
+                        return;
+                    }
+                }
+            }
+            catch(const std::invalid_argument){ 
+                // conversion to a long failed which is fine - we just ignore this case
+            } 
+        }
+    }
+
+
     // Set the timestamp for the reply
     session->response->setLastModified( (*session->image)->getTimestamp() );
 
@@ -211,8 +411,8 @@ void FIF::run( Session* session, const string& src ){
 
     // Add a copy of this image to cache since we want tiff and tiffbuff to be null as well as
     // to be able to dispose of the session image between sessions;
-    if ( max_headers_in_metadata_cache > 0 )
-      (*session->imageCache)[imageCacheKey] = new IIPImage( *(*session->image) );
+    //if ( max_headers_in_metadata_cache > 0 )
+    //  (*session->imageCache)[imageCacheKey] = new IIPImage( *(*session->image) );
 
   }
   catch( const file_error& error ){
@@ -225,7 +425,6 @@ void FIF::run( Session* session, const string& src ){
 
   // Check whether we have had an if_modified_since header. If so, compare to our image timestamp
   if( session->headers.find("HTTP_IF_MODIFIED_SINCE") != session->headers.end() ){
-
     tm mod_t;
     time_t t;
 

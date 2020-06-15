@@ -53,6 +53,7 @@ void IIPImage::swap( IIPImage& first, IIPImage& second ) // nothrow
   std::swap( first.format, second.format );
   std::swap( first.fileSystemPrefix, second.fileSystemPrefix );
   std::swap( first.fileNamePattern, second.fileNamePattern );
+  std::swap( first.originalFileName, second.originalFileName );
   std::swap( first.horizontalAnglesList, second.horizontalAnglesList );
   std::swap( first.verticalAnglesList, second.verticalAnglesList );
   std::swap( first.lut, second.lut );
@@ -145,7 +146,8 @@ void IIPImage::testImageType() throw(file_error)
 
     if( glob( filename.c_str(), 0, NULL, &gdat ) != 0 ){
       globfree( &gdat );
-      string message = path + string( " is neither a file nor part of an image sequence" );
+      // string message = path + string( " is neither a file nor part of an image sequence" );
+      string message = "No image resource with that identifier could be located.";
       throw file_error( message );
     }
     if( gdat.gl_pathc != 1 ){

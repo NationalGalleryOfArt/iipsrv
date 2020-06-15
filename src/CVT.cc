@@ -24,6 +24,9 @@
 #include "Environment.h"
 #include <cmath>
 #include <algorithm>
+#include <fstream>
+#include <string>
+#include <iostream>
 
 //#define CHUNKED 1
 
@@ -160,17 +163,20 @@ void CVT::send( Session* session ){
 #ifndef DEBUG
 
   // Define our separator depending on the OS
-#ifdef WIN32
-  const string separator = "\\";
-#else
-  const string separator = "/";
-#endif
+//#ifdef WIN32
+  //const string separator = "\\";
+//#else
+  //const string separator = "/";
+//#endif
 
 
   // Get our image file name and strip of the directory path and any suffix
-  string filename = (*session->image)->getImagePath();
-  int pos = filename.rfind(separator)+1;
-  string basename = filename.substr( pos, filename.rfind(".")-pos );
+  //string filename = (*session->image)->getImagePath();
+  //int pos = filename.rfind(separator)+1;
+  //string basename = filename.substr( pos, filename.rfind(".")-pos );
+  //string size_restriction;
+
+  string fname = (*session->image)->getOriginalFileName();
 
   char str[1024];
   snprintf( str, 1024,
@@ -184,11 +190,10 @@ void CVT::send( Session* session ){
 	    "Transfer-Encoding: chunked\r\n"
 #endif
 	    "\r\n",
-	    VERSION, session->response->getCacheControl().c_str(), (*session->image)->getTimestamp().c_str(), session->outputCompressor->getMimeType().c_str(), basename.c_str() );
+	    VERSION, session->response->getCacheControl().c_str(), (*session->image)->getTimestamp().c_str(), session->outputCompressor->getMimeType().c_str(), fname.c_str() );
 
   session->out->printf( (const char*) str );
 #endif
-
 
   // Get our requested region from our TileManager
   TileManager tilemanager( session->tileCache, *session->image, session->watermark, session->jpeg, session->logfile, session->loglevel );
@@ -300,8 +305,6 @@ void CVT::send( Session* session ){
     }
   }
 
-
-
   /*********************************************************************************************************
    Resize our image as requested. Use the interpolation method requested in the server configuration.
    - Use bilinear interpolation by default
@@ -338,7 +341,6 @@ void CVT::send( Session* session ){
     }
   }
 
-
   // Reduce to 1 or 3 bands if we have an alpha channel or a multi-band image
   if( (complete_image.channels==2) || (complete_image.channels>3 ) ){
 
@@ -354,8 +356,6 @@ void CVT::send( Session* session ){
 			  << function_timer.getTime() << " microseconds" << endl;
     }
   }
-
-
 
   // Convert to greyscale if requested
   if( (*session->image)->getColourSpace() == sRGB && session->view->colourspace == GREYSCALE ){
@@ -392,7 +392,6 @@ void CVT::send( Session* session ){
 			  << function_timer.getTime() << " microseconds" << endl;
     }
   }
-
 
 
   // Apply rotation - can apply this safely after gamma and contrast adjustment
@@ -441,13 +440,19 @@ void CVT::send( Session* session ){
     }
   }
 
+
   // Initialise our output compression object - this should set the header of the image as well which is
   // immediately pushed to the client
   session->outputCompressor->InitCompression( complete_image, resampled_height, iccLen, iccBuf );
 
   // Add XMP metadata if this exists
   if( (*session->image)->getMetadata("xmp").size() > 0 ){
-    if( session->loglevel >= 4 ) *(session->logfile) << "CVT :: Adding XMP metadata" << endl;
+
+    if( session->loglevel >= 4 ) {
+        *(session->logfile) << "CVT :: Adding XMP metadata" << endl;
+        // *(session->logfile) << (*session->image)->getMetadata("xmp") << endl;
+    }
+
     session->outputCompressor->addXMPMetadata( (*session->image)->getMetadata("xmp") );
   }
 

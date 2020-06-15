@@ -82,6 +82,9 @@ class IIPImage {
   /// Pattern for sequences
   std::string fileNamePattern;
 
+  /// original file name from the request prior to any transformation
+  std::string originalFileName;
+
   /// Indicates whether our image is a single file or part or a sequence
   bool isFile;
 
@@ -225,6 +228,7 @@ class IIPImage {
    : imagePath( image.imagePath ),
     fileSystemPrefix( image.fileSystemPrefix ),
     fileNamePattern( image.fileNamePattern ),
+    originalFileName( image.originalFileName ),
     isFile( image.isFile ),
     suffix( image.suffix ),
     horizontalAnglesList( image.horizontalAnglesList ),
@@ -313,6 +317,15 @@ class IIPImage {
 
   /// Set the file name pattern used in image sequences
   void setFileNamePattern( const std::string& pattern ) { fileNamePattern = pattern; };
+
+  /// Get the file name pattern used in image sequences
+  const std::string getFileNamePattern( ) { return fileNamePattern; };
+
+  /// Set the file name pattern used in image sequences
+  void setOriginalFileName( const std::string& filename ) { originalFileName = filename; };
+
+  /// Get the original file name used in the request
+  const std::string getOriginalFileName( ) { return originalFileName; };
 
   /// Return the number of available resolutions in the image
   unsigned int getNumResolutions() { return numResolutions; };

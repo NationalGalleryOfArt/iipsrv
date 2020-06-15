@@ -536,12 +536,22 @@ int main( int argc, char *argv[] )
     if ( (header = FCGX_GetParam("HTTP_MAX_SAMPLE_SIZE", request.envp)) )
       max_sample_size = atoi( header );
 #endif
-
     if ( max_sample_size != 0 ) {
       if (loglevel > 2) 
         logfile << "Setting max sample size: " << max_sample_size << endl;
       view.setMaxSampleSize( max_sample_size );
     }
+
+    // if enforce sampling size is present in an HTTP header, use it to override the default
+    int enforce_metadata_restriction = 1; // Environment::getEnforceEmbeddedImageRestrictions();
+    header = NULL;
+#ifndef DEBUG
+    if ( (header = FCGX_GetParam("NGA_INTERNAL", request.envp)) )
+      enforce_metadata_restriction = 0;
+#endif
+    view.setEnforceEmbeddedMaxSample( enforce_metadata_restriction );
+    if (loglevel > 2) 
+        logfile << "Main :: Setting enforce embedded metadata restrictions to: " << enforce_metadata_restriction << endl;
 
     // Create an IIPResponse object - we use this for the OBJ requests.
     // As the commands return images etc, they handle their own responses.
@@ -636,7 +646,7 @@ int main( int argc, char *argv[] )
       }
 
       if (loglevel > 1)
-        logfile << "SYNTHESIZED QUERY STRING:" << request_string << endl;
+        logfile << "Main :: Synthesized Query String:" << request_string << endl;
 
       // Check that we actually have a request string
       if( request_string.empty() ){
@@ -644,7 +654,7 @@ int main( int argc, char *argv[] )
       }
 
       if( loglevel >=2 ){
-	logfile << "Full Request is " << request_string << endl;
+	logfile << "Main :: Full Request is " << request_string << endl;
       }
 
 
@@ -726,6 +736,10 @@ int main( int argc, char *argv[] )
 	task = Task::factory( command );
 	if( task ) task->run( &session, argument );
 
+        // if the response has already been sent out, e.g. a redirect, then don't process any more commands
+        if (response.imageSent())
+            break;
+
 
 	if( !task ){
 	  if( loglevel >= 1 ) logfile << "Unsupported command: " << command << endl;
@@ -781,15 +795,19 @@ int main( int argc, char *argv[] )
 #ifdef HAVE_MEMCACHED
   #ifndef DEBUG
       if (!disable_primary_memcache) {
-        if( memcached.connected() ){
-          Timer memcached_timer;
-          memcached_timer.start();
-          memcached.store( session.headers["QUERY_STRING"], writer.buffer, writer.sz );
-          if( loglevel >= 3 ){
-            logfile << "Memcached :: stored " << writer.sz << " bytes in "
-                    << memcached_timer.getTime() << " microseconds" << endl;
-          }
-        }
+        //logfile << "DAVE MAIN 1 ::::::::" << response.isCacheable() << endl; 
+        //logfile << "DAVE MAIN 2 ::::::::" << response.getCacheControl() << endl; 
+        if ( response.getCacheControl() != "Cache-Control: no-cache" && response.isCacheable() ) {
+            if( memcached.connected() ){
+                Timer memcached_timer;
+                memcached_timer.start();
+                memcached.store( session.headers["QUERY_STRING"], writer.buffer, writer.sz );
+                if( loglevel >= 3 ){
+                    logfile << "Memcached :: stored " << writer.sz << " bytes in "
+                        << memcached_timer.getTime() << " microseconds" << endl;
+                }
+            }
+         }
       }
   #endif
 #endif

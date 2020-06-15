@@ -130,23 +130,23 @@ void TileManager::crop( RawTile *ttt ){
 
   // Create a new buffer, fill it with the old data, then copy
   // back the cropped part into the RawTile buffer
-  int len = tw * th * ttt->channels * ttt->bpc/8;
+  int len = tw * th * ttt->channels * (ttt->bpc/8);
   unsigned char* buffer = (unsigned char*) malloc( len );
   unsigned char* src_ptr = (unsigned char*) memcpy( buffer, ttt->data, len );
   unsigned char* dst_ptr = (unsigned char*) ttt->data;
 
   // Copy one scanline at a time
   for( unsigned int i=0; i<ttt->height; i++ ){
-    len =  ttt->width * ttt->channels * ttt->bpc/8;
+    len =  ttt->width * ttt->channels * (ttt->bpc/8);
     memcpy( dst_ptr, src_ptr, len );
     dst_ptr += len;
-    src_ptr += tw * ttt->channels * ttt->bpc/8;
+    src_ptr += tw * ttt->channels * (ttt->bpc/8);
   }
 
   free( buffer );
 
   // Reset the data length
-  len = ttt->width * ttt->height * ttt->channels * ttt->bpc/8;
+  len = ttt->width * ttt->height * ttt->channels * (ttt->bpc/8);
   ttt->dataLength = len;
   ttt->padded = false;
 
@@ -160,7 +160,6 @@ RawTile TileManager::getTile( int resolution, int tile, int xangle, int yangle, 
   RawTile* rawtile = NULL;
   string tileCompression;
   string compName;
-
 
   // Time the tile retrieval
   if( loglevel >= 2 ) tile_timer.start();
@@ -293,6 +292,7 @@ RawTile TileManager::getTile( int resolution, int tile, int xangle, int yangle, 
 
 RawTile TileManager::getRegion( unsigned int res, int seq, int ang, int layers, unsigned int x, unsigned int y, unsigned int width, unsigned int height, int maxSamplingSize ){
 
+
   // If our image type can directly handle region compositing, simply return that
   if( image->regionDecoding() ){
     if( loglevel >= 3 ){
@@ -329,7 +329,6 @@ RawTile TileManager::getRegion( unsigned int res, int seq, int ang, int layers, 
   // Start and end tiles and pixel offsets
   unsigned int startx, endx, starty, endy, xoffset, yoffset;
 
-
   if( ! ( x==0 && y==0 && width==im_width && height==im_height ) ){
     // Calculate the start tiles
     startx = (unsigned int) ( x / src_tile_width );
@@ -362,7 +361,8 @@ RawTile TileManager::getRegion( unsigned int res, int seq, int ang, int layers, 
 
   // Create an empty tile with the correct dimensions
   RawTile region( 0, res, seq, ang, width, height, channels, bpc );
-  region.dataLength = width * height * channels * bpc/8;
+
+  region.dataLength = width * height * channels * ( bpc/8 );
   region.sampleType = sampleType;
 
   // Allocate memory for the region
@@ -388,7 +388,10 @@ RawTile TileManager::getRegion( unsigned int res, int seq, int ang, int layers, 
       if( loglevel >= 2 ) tile_timer.start();
 
       // Get an uncompressed tile - never needs an ICC profile
+        // DPB removed for testing
       RawTile rawtile = this->getTile( res, (i*ntlx) + j, seq, ang, layers, UNCOMPRESSED, 0, NULL, maxSamplingSize);
+        // dpb
+      // RawTile rawtile = this->getNewTile( res, (i*ntlx) + j, seq, ang, layers, UNCOMPRESSED, 0, NULL, maxSamplingSize);
 
       if( loglevel >= 2 ){
 	*logfile << "TileManager getRegion :: Tile access time " << tile_timer.getTime() << " microseconds for tile "

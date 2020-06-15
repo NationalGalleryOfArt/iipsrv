@@ -51,8 +51,10 @@
 #define IIIF_PREFIX ""; // e.g. /iiif
 
 #include <string>
+#include <algorithm>
+#include <cstring>
+ 
 #include <zlib.h>
-
 
 /// Class to obtain environment variables
 class Environment {
@@ -184,13 +186,22 @@ class Environment {
   static int getMaxSampleSize(){
     char* envpara = getenv( "MAX_SAMPLE_SIZE" );
     int max_sample_size;
-    if( envpara ){
+    if ( envpara ){
       max_sample_size = atoi( envpara );
       if ( max_sample_size < 0 ) max_sample_size = 0;
     }
     else max_sample_size = MAX_SAMPLE_SIZE;
 
     return max_sample_size;
+  }
+
+  static int getEnforceEmbeddedImageRestrictions(){
+    // this obviously needs to be changed to another value before it can become a candidate for release
+    // as part of general IIP client
+    char* envpara = getenv( "ENFORCE_EMBEDDED_IMAGE_RESTRICTIONS" );
+    if ( envpara ) 
+        return 1;
+    return 0;
   }
 
 
