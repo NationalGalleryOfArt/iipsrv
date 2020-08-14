@@ -83,7 +83,7 @@ void TPTImage::loadImageInfo( int seq, int ang ) throw(file_error)
   uint16 colour, samplesperpixel, bitspersample, sampleformat;
   double sminvaluearr[4] = {0.0}, smaxvaluearr[4] = {0.0};
   double *sminvalue = NULL, *smaxvalue = NULL;
-  unsigned int w, h;
+  unsigned int w, h, lw, lh, residx;
   string filename;
   char *tmp = NULL;
 
@@ -111,33 +111,58 @@ void TPTImage::loadImageInfo( int seq, int ang ) throw(file_error)
 
   // Store the list of image dimensions available, starting with the full res at index 0
   numResolutions = 0;
-  skippedResolutions = 0;
+  startResolution = -1;
+  residx = 0;
+  lw = w; lh = h;
   if ( maxSampleSize <= 0 || ( w <= maxSampleSize && h <= maxSampleSize ) ) {
+    //logfile << "TPTImage :: added RES " << w << "x" << h << endl;
     image_widths.push_back( w );
     image_heights.push_back( h );
     numResolutions++;
+    startResolution = residx;
   }
-  else
-    skippedResolutions++;
 
   while ( TIFFReadDirectory( tiff ) ) {
+    residx++;
     TIFFGetField( tiff, TIFFTAG_IMAGEWIDTH, &w );
     TIFFGetField( tiff, TIFFTAG_IMAGELENGTH, &h );
+
     if ( maxSampleSize <= 0 || ( w <= maxSampleSize && h <= maxSampleSize ) ) {
+      // if the last resolution we added is smaller than this resolution which is farther
+      // down the chain, this indicates that we need to dump all of the other resolutions and
+      // use these tile sizes instead since they are properly sized for the image restriction
+      if ( lw < w || lh < h ) {
+        if ( maxSampleSize <= 0 ) {
+            break;
+        }
+        else {
+            numResolutions=0;
+            image_widths.clear();
+            image_heights.clear();
+            startResolution=residx;
+        }
+      }
+      //logfile << "TPTImage :: added RES " << w << "x" << h << endl;
       image_widths.push_back( w );
       image_heights.push_back( h );
+      lw = w; lh = h; 
       numResolutions++;
+      if ( startResolution < 0 )
+        startResolution = residx;
     }
-    else 
-        skippedResolutions++;
+    else
+        startResolution = -1;
+        
   }
   // if we don't have any samples small enough to meet the maxSampleSize criteria, then sample from the smallest we actually have
   if ( numResolutions == 0 ) {
+    //logfile << "TPTImage :: added RES " << w << "x" << h << endl;
     image_widths.push_back( w );
     image_heights.push_back( h );
     numResolutions = 1;
-    skippedResolutions--;
+    startResolution=residx;
   }
+
   // Reset the TIFF directory
   TIFFSetDirectory( tiff, current_dir );
 
@@ -260,10 +285,12 @@ RawTile TPTImage::getTile( int seq, int ang, unsigned int res, int layers, unsig
   // The first resolution is the highest, so we need to invert 
   //  the resolution - can avoid this if we store our images with
   //  the smallest image first. 
-  int vipsres = ( numResolutions + skippedResolutions - 1 ) - res;
-  
+  int vipsres = ( numResolutions + startResolution - 1 ) - res;
+  //logfile << "TPTImage :: numResolutions:" << numResolutions << endl;
+  //logfile << "TPTImage :: startResolution:" << startResolution << endl;
+  //logfile << "TPTImage :: vipsres:" << vipsres << endl;
 
-  // Change to the right directory for the resolution, factoring in that we might have
+  // Change to the right directory for the required resolution, factoring in that we might have
   // skipped resolutions that were of too high resolution for a particular request
   if( !TIFFSetDirectory( tiff, vipsres ) ) {
     throw file_error( "TIFFSetDirectory failed" );

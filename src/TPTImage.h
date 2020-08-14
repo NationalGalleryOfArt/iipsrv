@@ -28,7 +28,7 @@
 #include <tiff.h>
 #include <tiffio.h>
 
-
+// extern std::ofstream logfile;
 
 
 /// Image class for Tiled Pyramidal Images: Inherits from IIPImage. Uses libtiff

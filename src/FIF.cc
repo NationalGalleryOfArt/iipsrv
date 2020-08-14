@@ -205,7 +205,7 @@ void FIF::run( Session* session, const string& src ){
     else { // new image needs to be created and cached
       if ( max_headers_in_metadata_cache > 0 ) {
         if ( session->imageCache->empty() ) { // cache is empty
-          if ( session->loglevel >= 1 && session->imageCache->size() == 0 ) 
+          if ( session->loglevel >= 2 && session->imageCache->size() == 0 ) 
             *(session->logfile) << "FIF :: Image cache initialization" << endl;
         }
         else {  // non-empty cache, so check its size and prune the first entry if needs be
@@ -337,9 +337,9 @@ void FIF::run( Session* session, const string& src ){
 
                 // if image sampling size restrictions are defined for this image and no sampling size was requested or 
                 // the requested sampling size is larger than the max allowable, don't cache responses to requests for this image
-                    *(session->logfile) << ":::::::::::::::::::::::::: SETTING HERE :::::::::::::::::::::::::::::::" << endl;
                 if ( maxPixels <= 0 || ( maxPixels > 0 && ( maxInRequest <= 0 || maxInRequest > maxPixels ) ) ) {
-                    *(session->logfile) << ":::::::::::::::::::::::::: SETTING NOT CACHEABLE :::::::::::::::::::::::::::::::" << endl;
+                    if ( session->loglevel >= 2 ) 
+                        *(session->logfile) << "FIF :: SETTING NOT CACHEABLE " << endl;
                     // disable caching of this response in all cases 
                     session->response->setCacheControl("no-cache");
                     session->response->setNotCacheable();
@@ -361,9 +361,11 @@ void FIF::run( Session* session, const string& src ){
                     if ( session->view->getEnforceEmbeddedMaxSample() ) {
                         string request_uri = session->headers["REQUEST_URI"];
 
-                        *(session->logfile) << ":::::::::::::::::::::::::: " << request_uri << " :::::::::::::::::::::::::::::::" << endl;
-                        *(session->logfile) << ":::::::::::::::::::::::::: " << argument << " :::::::::::::::::::::::::::::::" << endl;
-                        *(session->logfile) << ":::::::::::::::::::::::::: " << originalFileName << " :::::::::::::::::::::::::::::::" << endl;
+                        if( session->loglevel >= 2 ) {
+                            *(session->logfile) << "FIF :: REQUEST_URI: " << request_uri << endl;
+                            *(session->logfile) << "FIF :: ARGUMENT: " << argument << endl;
+                            *(session->logfile) << "FIF :: ORIG FILENAME: " << originalFileName << endl;
+                        }
                         // request_uri.replace(request_uri.find(originalFileName), originalFileName.length(), originalFileName + SIZESEP + to_string(maxPixels));
                         //string newFileName = originalFileName + SIZESEP + to_string(maxPixels);
 
@@ -375,7 +377,8 @@ void FIF::run( Session* session, const string& src ){
 
                         request_uri.replace(request_uri.find(originalFileName), originalFileName.length(), revisedFileName + SIZESEP + to_string(maxPixels));
 
-                        *(session->logfile) << ":::::::::::::::::::::::::: " << request_uri << " :::::::::::::::::::::::::::::::" << endl;
+                        if ( session->loglevel >= 2 ) 
+                            *(session->logfile) << "FIF :: REQUEST URI: " << request_uri << endl;
                         string header = string( "Status: 303 See Other\r\n" ) + 
                                                 "Location: " + request_uri + "\r\n" + 
                                                 "Server: iipsrv/" + VERSION + "\r\n" + 

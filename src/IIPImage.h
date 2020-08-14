@@ -132,8 +132,8 @@ class IIPImage {
   /// The number of available resolutions in this image
   unsigned int numResolutions;
 
-  // The number of skipped resolutions due to rights restrictions
-  unsigned int skippedResolutions;
+  // The resolution where the tiles of interest start - sometimes we skip resolutions due to rights restrictions
+  int startResolution;
 
   // The maximum dimension (width or height in pixels) permitted for any resolution level; any resolution greater than this will be skipped at load time
   // This feature can be used to enforce rights restrictions that might exist on images
@@ -181,7 +181,7 @@ class IIPImage {
     tile_height( 0 ),
     colourspace( NONE ),
     numResolutions( 0 ),
-    skippedResolutions( 0 ),
+    startResolution( 0 ),
     maxSampleSize( 0 ),
     bpc( 0 ),
     channels( 0 ),
@@ -207,7 +207,7 @@ class IIPImage {
     tile_height( 0 ),
     colourspace( NONE ),
     numResolutions( 0 ),
-    skippedResolutions( 0 ),
+    startResolution( 0 ),
     maxSampleSize( 0 ),
     bpc( 0 ),
     channels( 0 ),
@@ -242,7 +242,7 @@ class IIPImage {
     tile_height( image.tile_height ),
     colourspace( image.colourspace ),
     numResolutions( image.numResolutions ),
-    skippedResolutions( image.skippedResolutions ),
+    startResolution( image.startResolution ),
     maxSampleSize( image.maxSampleSize ),
     bpc( image.bpc ),
     channels( image.channels ),
@@ -329,9 +329,6 @@ class IIPImage {
 
   /// Return the number of available resolutions in the image
   unsigned int getNumResolutions() { return numResolutions; };
-
-  /// Return the number of available resolutions in the image
-  unsigned int getSkippedResolutions() { return skippedResolutions; };
 
   /// Return the number of bits per pixel for this image
   unsigned int getNumBitsPerPixel() { return bpc; };
