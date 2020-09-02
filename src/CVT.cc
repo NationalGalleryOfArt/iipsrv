@@ -57,6 +57,12 @@ void CVT::send( Session* session ){
   unsigned int im_width = (*session->image)->getImageWidth(); // / session->oversamplingFactor;
   unsigned int im_height = (*session->image)->getImageHeight(); // / session->oversamplingFactor;
 
+  // compute default aspect ratio using the full image size which is the largest tile size available
+  // this ensures consistent scaling is applied regardless of the tile used for sampling the image - except in cases
+  // of restricted images where the maximum size is clipped already - and that's acceptable - it just means the aspect ratio
+  // is slightly less accurate with lower resolution restricted images which is to be expected
+  double aspectRatio = (double) im_width / (double) im_height;
+
   int num_res = (*session->image)->getNumResolutions();
 
   // Setup our view with some basic info
@@ -91,6 +97,9 @@ void CVT::send( Session* session ){
     view_height = session->view->getViewHeight();
     resampled_width = session->view->getRequestWidth();
     resampled_height = session->view->getRequestHeight();
+
+    // recompute the propr aspect ratio when a view port into the image is set manually
+    aspectRatio = (double) view_width / (double) view_height;
 
     if( session->loglevel >= 3 ){
       *(session->logfile) << "CVT :: Region: " << view_left << "," << view_top
@@ -133,8 +142,11 @@ void CVT::send( Session* session ){
 
     // calculate potential new constraints in both width and height dimensions holding the other dimension constant
     // the dimension with the least difference (usually zero difference at this point in processing) is the one that needs to be recalculated
-    unsigned int rw2 = (unsigned int) round( ( (double) view_width * (double) resampled_height ) / (double) view_height );
-    unsigned int rh2 = (unsigned int) round( ( (double) view_height * (double) resampled_width ) / (double) view_width );
+    //unsigned int rw2 = (unsigned int) round( ( (double) view_width * (double) resampled_height ) / (double) view_height );
+    //unsigned int rh2 = (unsigned int) round( ( (double) view_height * (double) resampled_width ) / (double) view_width );
+
+    unsigned int rw2 = (unsigned int) round( aspectRatio * (double) resampled_height );
+    unsigned int rh2 = (unsigned int) round( (double) resampled_width / aspectRatio );
 
     if ( session->loglevel >= 5 ){
         *(session->logfile) << "CVT :: DEBUG: resampled width X resampled height:" << resampled_width << "x" << resampled_height << endl;
