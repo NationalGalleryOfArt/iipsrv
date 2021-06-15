@@ -103,7 +103,9 @@ void FIF::run( Session* session, const string& src ){
     *(session->logfile) << "FIF dir1: " << dir1 << endl;
     *(session->logfile) << "FIF dir2: " << dir2 << endl;
     *(session->logfile) << "FIF uuid: " << uuid << endl;
+    *(session->logfile) << "FIF uuidfrag: " << uuidfrag << endl;
     *(session->logfile) << "FIF fpath: " << fpath << endl;
+    *(session->logfile) << "FIF sz: " << sz << endl;
   }
   
   if( session->loglevel >= 5 )

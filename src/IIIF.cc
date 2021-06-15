@@ -545,6 +545,12 @@ void IIIF::run( Session* session, const string& src )
             new_w = round( (double) new_h * ratio );
       }
 
+      // ensure the new width and height are at least one pixel if the rounded values were zero
+      if ( new_h == 0 )
+        new_h = 1;
+      if ( new_w == 0 )
+        new_w = 1;
+
       // and finally, set the requested width and height to the lesser of the requested 
       // and constrained (by max_size and / or maintain aspect) width and height
       if ( new_w < requested_width )
