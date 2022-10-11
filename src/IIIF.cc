@@ -441,7 +441,7 @@ void IIIF::run( Session* session, const string& src )
       }
 
       // "full" request
-      if ( sizeString == "full" ){
+      if ( sizeString == "full" || sizeString == "max" ){
         // No need to do anything
       }
 

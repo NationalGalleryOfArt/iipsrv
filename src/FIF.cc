@@ -74,7 +74,8 @@ void FIF::run( Session* session, const string& src ){
 
   //                $1              $2                                     $3                                        $4
   //              first 3        second 3                               rest of uuid                              optional size
-  regex uuidre("^/?([a-z0-9]{3})([a-z0-9]{3})([a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})(?:"+SIZESEP+"(.*))?");
+  // try {
+  regex uuidre("^/?([a-z0-9]{3})([a-z0-9]{3})([a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})("+SIZESEP+")?(.*)?");
   std::smatch sm;
   std::regex_match(argument,sm,uuidre);
   if( session->loglevel >= 5 )
@@ -94,7 +95,7 @@ void FIF::run( Session* session, const string& src ){
     else if (stat ( (filesystem_prefix + "public/images" + fpath ).c_str(), &buffer) == 0) 
         fpath = "/public/images" + fpath;
 
-    string sz = sm[4];
+    string sz = sm[5];
     if ( !sz.empty() )
         fpath = fpath + SIZESEP + sz;
 
@@ -107,6 +108,10 @@ void FIF::run( Session* session, const string& src ){
     *(session->logfile) << "FIF fpath: " << fpath << endl;
     *(session->logfile) << "FIF sz: " << sz << endl;
   }
+
+// } catch ( std::exception& e) {
+//    *(session->logfile) << "CAUGHT:: " << e.what() << endl;
+// }
   
   if( session->loglevel >= 5 )
     *(session->logfile) << "FIF :: " << argument << endl;
