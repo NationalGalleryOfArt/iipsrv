@@ -87,6 +87,22 @@ FIND_JPEG(,[AC_MSG_ERROR([libjpeg not found])])
 AC_SEARCH_LIBS(gzopen, z)
 
 
+#************************************************************
+# Check for Boost.Regex library
+
+AC_CHECK_LIB([boost_regex], [main], [BOOST_LIBS="-lboost_regex"], [BOOST_LIBS="no"])
+AC_CHECK_HEADER([boost/regex.hpp], [BOOST_CPPFLAGS="-I/usr/include"], [BOOST_CPPFLAGS="no"])
+
+if test "$BOOST_LIBS" != "no" && test "$BOOST_CPPFLAGS" != "no"; then
+    AC_SUBST([BOOST_LIBS])
+    AC_SUBST([BOOST_CPPFLAGS])
+    AC_DEFINE([HAVE_BOOST], [1], [Define if Boost is available])
+    LIBS="$LIBS $BOOST_LIBS"    # Append Boost.Regex to LIBS
+else
+    AC_MSG_ERROR([Boost.Regex library not found])
+fi
+
+
 
 #************************************************************
 # Check for libmemcached
