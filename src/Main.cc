@@ -192,7 +192,11 @@ int main( int argc, char *argv[] )
     }
 
     // Put a header marker and credit in the file
-    else{
+    // But only when loglevel is > 1 because with max process time to live
+    // the log file gets filled with these notices - once if we know we're the 
+    // first CGI process to be established would be a good idea
+    // but that requires a little more research
+    else if ( loglevel > 1 ) {
 
       // Get current time
       time_t current_time = time( NULL );
@@ -254,7 +258,7 @@ int main( int argc, char *argv[] )
     }
   }
   else{
-    if( loglevel >= 1 ) logfile << "Running in FCGI mode" << endl << endl;
+    if( loglevel > 1 ) logfile << "Running in FCGI mode" << endl << endl;
   }
 
 #endif
@@ -329,7 +333,7 @@ int main( int argc, char *argv[] )
 #endif
 
   // Print out some information
-  if( loglevel >= 1 ){
+  if( loglevel > 1 ){
     logfile << "Setting maximum image cache size to " << max_image_cache_size << "MB" << endl;
     logfile << "Setting maximum headers in image metadata cache to " << max_headers_in_metadata_cache << " images" << endl;
     logfile << "Setting filesystem prefix to '" << filesystem_prefix << "'" << endl;
@@ -383,7 +387,7 @@ int main( int argc, char *argv[] )
 
   // Create our memcached object
   Memcache memcached( memcached_servers, memcached_timeout );
-  if( loglevel >= 1 ){
+  if( loglevel > 1 ){
     if( memcached.connected() ){
       logfile << "Memcached support enabled. Connected to servers: '" << memcached_servers
 	      << "' with timeout " << memcached_timeout << endl;
@@ -395,7 +399,7 @@ int main( int argc, char *argv[] )
 
 
   // Add a new blank line
-  if( loglevel >= 1 ) logfile << endl;
+  if( loglevel > 1 ) logfile << endl;
 
 
   /***********************************************************
@@ -460,7 +464,7 @@ int main( int argc, char *argv[] )
 
 
 
-  if( loglevel >= 1 ){
+  if( loglevel > 1 ){
     logfile << endl << "Initialisation Complete." << endl
 	    << "<----------------------------------->"
 	    << endl << endl;
@@ -670,6 +674,9 @@ int main( int argc, char *argv[] )
       if( (header = FCGX_GetParam("HTTP_HOST", request.envp)) ){
         session.headers["HTTP_HOST"] = string(header);
       }
+      if( (header = FCGX_GetParam("ATTACHMENT_FILENAME", request.envp)) ){
+        session.headers["ATTACHMENT_FILENAME"] = string(header);
+      }
       if( (header = FCGX_GetParam("REQUEST_URI", request.envp)) ){
         session.headers["REQUEST_URI"] = string(header);
       }
@@ -830,6 +837,7 @@ int main( int argc, char *argv[] )
         case 304:
 	  status = "Status: 304 Not Modified\r\nServer: iipsrv/" + version + "\r\n\r\n";
 	  writer.printf( status.c_str() );
+          writer.printf( "\n" );
 	  writer.flush();
           if( loglevel >= 2 ){
 	    logfile << "Sending HTTP 304 Not Modified" << endl;
@@ -877,6 +885,7 @@ int main( int argc, char *argv[] )
     catch( const file_error& error ){
       string status = "Status: 404 Not Found\r\nServer: iipsrv/" + version + "\r\n\r\n" + error.what();
       writer.printf( status.c_str() );
+      writer.printf( "\n" );
       writer.flush();
       if( loglevel >= 2 ){
 	logfile << error.what() << endl;
@@ -888,6 +897,7 @@ int main( int argc, char *argv[] )
     catch( const invalid_argument& error ){
       string status = "Status: 400 Bad Request\r\nServer: iipsrv/" + version + "\r\n\r\n" + error.what();
       writer.printf( status.c_str() );
+      writer.printf( "\n" );
       writer.flush();
       if( loglevel >= 2 ){
 	logfile << error.what() << endl;

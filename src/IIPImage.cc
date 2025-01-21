@@ -148,12 +148,12 @@ void IIPImage::testImageType() throw(file_error)
       globfree( &gdat );
       // string message = path + string( " is neither a file nor part of an image sequence" );
       string message = "No image resource with that identifier could be located.";
-      throw file_error( message );
+      throw file_error( message + "\n");
     }
     if( gdat.gl_pathc != 1 ){
       globfree( &gdat );
       string message = string( "There are multiple file extensions matching " )  + filename;
-      throw file_error( message );
+      throw file_error( message + "\n");
     }
 
     string tmp( gdat.gl_pathv[0] );

@@ -27,11 +27,60 @@
 #include <fstream>
 #include <string>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
+#include <cctype>
 
 //#define CHUNKED 1
 
 using namespace std;
 
+
+std::string percent_encode(const std::string& value) {
+    std::ostringstream escaped;
+    escaped.fill('0');
+    escaped << std::hex;
+
+    for (char c : value) {
+        // Alphanumeric and safe characters don't need encoding
+        if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            escaped << c;
+        } else {
+            // Percent-encode all other characters
+            escaped << '%' << std::uppercase << std::setw(2) << int((unsigned char)c);
+        }
+    }
+    return escaped.str();
+}
+
+
+std::string sanitize_filename(const std::string& input) {
+    std::string sanitized;
+
+    for (char ch : input) {
+        // Allow only alphanumeric characters, dots, underscores, and dashes
+        if (std::isalnum(ch) || ch == '.' || ch == '_' || ch == '-') {
+            sanitized += ch;
+        }
+    }
+
+    // Truncate the filename to a maximum length of 255 characters
+    if (sanitized.length() > 255) {
+        sanitized = sanitized.substr(0, 255);
+    }
+
+    // Return a fallback filename if the input results in an empty string
+    //if (sanitized.empty()) {
+    //    return "default_filename.txt";
+    //}
+
+    return sanitized;
+}
+
+std::string sanitize_and_encode_filename(const std::string& user_input) {
+    std::string sanitized = sanitize_filename(user_input);
+    return percent_encode(sanitized);
+}
 
 
 void CVT::send( Session* session ){
@@ -188,7 +237,16 @@ void CVT::send( Session* session ){
   //string basename = filename.substr( pos, filename.rfind(".")-pos );
   //string size_restriction;
 
-  string fname = (*session->image)->getOriginalFileName();
+  string fname = sanitize_and_encode_filename((*session->image)->getOriginalFileName());
+  string content_disposition_header = "inline;filename=\"" + fname + "\"";
+
+  string attachment = sanitize_and_encode_filename(session->headers["ATTACHMENT_FILENAME"]);
+
+  if (!attachment.empty()) {
+    content_disposition_header = "attachment;filename=\"" + attachment + "\"";
+    //*(session->logfile) << "*********************************************************************" << attachment << endl;
+    //*(session->logfile) << "*********************************************************************" << content_disposition_header << endl;
+  }
 
   char str[1024];
   snprintf( str, 1024,
@@ -197,12 +255,13 @@ void CVT::send( Session* session ){
 	    "%s\r\n"
 	    "Last-Modified: %s\r\n"
 	    "Content-Type: %s\r\n"
-	    "Content-Disposition: inline;filename=\"%s.jpg\"\r\n"
+	    "Content-Disposition: %s\r\n"
 #ifdef CHUNKED
 	    "Transfer-Encoding: chunked\r\n"
 #endif
 	    "\r\n",
-	    VERSION, session->response->getCacheControl().c_str(), (*session->image)->getTimestamp().c_str(), session->outputCompressor->getMimeType().c_str(), fname.c_str() );
+	    VERSION, session->response->getCacheControl().c_str(), (*session->image)->getTimestamp().c_str(), 
+            session->outputCompressor->getMimeType().c_str(), content_disposition_header.c_str() );
 
   session->out->printf( (const char*) str );
 #endif

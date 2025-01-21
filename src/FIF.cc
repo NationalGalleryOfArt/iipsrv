@@ -28,6 +28,7 @@
 #include "Environment.h"
 #include "IIPImage.h"
 #include "TPTImage.h"
+#include <boost/regex.hpp>
 
 #ifdef HAVE_KAKADU
 #include "KakaduImage.h"
@@ -67,6 +68,9 @@ void FIF::run( Session* session, const string& src ){
   URL url( src );
   string argument = url.decode();
 
+  if( session->loglevel >= 5 ) 
+    *(session->logfile) << "FIF Argument: " << argument << std::endl;
+
   // special handling of regex for NGA that should be turned into a regex_replace general purpose routine 
   // based on configuration but for now is hard-coded - this one works with uuids to transform requests for uuids
   // into actual file name paths which are then used for loading the image file, but NOT used in URL responses back
@@ -75,9 +79,88 @@ void FIF::run( Session* session, const string& src ){
   //                $1              $2                                     $3                                        $4
   //              first 3        second 3                               rest of uuid                              optional size
   // try {
-  regex uuidre("^/?([a-z0-9]{3})([a-z0-9]{3})([a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})("+SIZESEP+")?(.*)?");
-  std::smatch sm;
+
+
+  try {
+    // Create a Boost.Regex pattern
+    boost::regex uuidre("^/?([a-z0-9]{3})([a-z0-9]{3})([a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})(" + SIZESEP + ")?(.*)?");
+
+    //*(session->logfile) << "Boost regex compiled successfully." << std::endl;
+
+    boost::smatch sm;  // Use boost::smatch for match results
+
+    // Perform the regex match
+    if (boost::regex_match(argument, sm, uuidre)) {
+
+        if (session->loglevel >= 5) {
+            *(session->logfile) << "FIF :: Match Count: " << sm.size() << std::endl;
+        }
+
+        if (sm.size() > 0) {
+            std::string dir1 = sm[1];
+            std::string dir2 = sm[2];
+            std::string uuidfrag = sm[3];
+            std::string uuid = dir1 + dir2 + uuidfrag;
+            std::string fpath = separator + dir1 + separator + dir2 + separator + uuid;
+
+            // Check for existence of this file
+            struct stat buffer;
+            if (stat((filesystem_prefix + "private/images" + fpath).c_str(), &buffer) == 0)
+                fpath = "/private/images" + fpath;
+            else if (stat((filesystem_prefix + "public/images" + fpath).c_str(), &buffer) == 0)
+                fpath = "/public/images" + fpath;
+
+            std::string sz = sm[5];
+            if (!sz.empty())
+                fpath = fpath + SIZESEP + sz;
+
+            argument = fpath;
+
+            if (session->loglevel >= 5) {
+                *(session->logfile) << "FIF dir1: " << dir1 << std::endl;
+                *(session->logfile) << "FIF dir2: " << dir2 << std::endl;
+                *(session->logfile) << "FIF uuid: " << uuid << std::endl;
+                *(session->logfile) << "FIF uuidfrag: " << uuidfrag << std::endl;
+                *(session->logfile) << "FIF fpath: " << fpath << std::endl;
+                *(session->logfile) << "FIF sz: " << sz << std::endl;
+            }
+        }
+    } 
+    //else {
+    //    *(session->logfile) << "No match found." << std::endl;
+    //}
+  } catch (const boost::regex_error &e) {
+    *(session->logfile) << "Boost regex failed: " << e.what() << std::endl;
+  }
+
+
+  //boost::regex uuidre("^/?([a-z0-9]{3})([a-z0-9]{3})([a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})("+SIZESEP+")?(.*)?");
+  // regex uuidre("^/?([a-z0-9]{3})([a-z0-9]{3})([a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})("+SIZESEP+")?(.*)?");
+                  
+  //std::regex uuidre(".*");
+
+    //try {
+    //    boost::regex re("^/?([a-z0-9]{3})([a-z0-9]{3})([a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})("+SIZESEP+")?(.*)?");
+    //    //boost::regex re("^/([a-z0-9]{3})([a-z0-9]{3})([a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})(__)?(.*)");
+    //    *(session->logfile) << "Boost regex compiled successfully." << std::endl;
+    //} catch (const boost::regex_error& e) {
+    //    *(session->logfile) << "Boost regex failed: " << e.what() << std::endl;
+   // }
+
+  //try {
+  //  std::regex uuidre2("[abc]");
+
+   // *(session->logfile) << "Simplified regex compiled successfully." << std::endl;
+  //} catch (const std::regex_error& e) {
+  //  *(session->logfile) << "Simplified regex failed: " << e.what() << std::endl;
+  //}
+
+  /*std::smatch sm;
+
   std::regex_match(argument,sm,uuidre);
+
+  *(session->logfile) << "HERE C: " << endl;
+
   if( session->loglevel >= 5 )
     *(session->logfile) << "FIF :: Match Count: " << sm.size() << endl;
 
@@ -108,6 +191,7 @@ void FIF::run( Session* session, const string& src ){
     *(session->logfile) << "FIF fpath: " << fpath << endl;
     *(session->logfile) << "FIF sz: " << sz << endl;
   }
+*/
 
 // } catch ( std::exception& e) {
 //    *(session->logfile) << "CAUGHT:: " << e.what() << endl;

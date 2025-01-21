@@ -29,6 +29,7 @@
 #include "Filters.h"
 #include "URL.h"
 #include "sys/stat.h"
+#include <boost/regex.hpp>
 
 #if _MSC_VER
 #include "../windows/Time.h"
@@ -42,6 +43,8 @@
 
 using namespace std;
 
+const string SIZESEP = "__";
+
 // The request is in the form {identifier}/{region}/{size}/{rotation}/{quality}{.format}
 //     eg. filename.tif/full/full/0/native.jpg
 // or in the form {identifier}/info.json
@@ -49,6 +52,15 @@ using namespace std;
 
 void IIIF::run( Session* session, const string& src )
 {
+
+
+  // Define our separator depending on the OS
+#ifdef WIN32
+  const string separator = "\\";
+#else
+  const string separator = "/";
+#endif
+
 
   if ( session->loglevel >= 3 ) *(session->logfile) << "IIIF handler reached" << endl;
 
@@ -69,9 +81,94 @@ void IIIF::run( Session* session, const string& src )
     }
   }
 
-  // if URL points to a file that we have access to, redirect to the info.json service for that file 
+  try {
+    // Create a Boost.Regex pattern
+    boost::regex uuidre("^/?([a-z0-9]{3})([a-z0-9]{3})([a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})(" + SIZESEP + "[0-9]*)?/?(.*)");
+
+    // *(session->logfile) << "Boost regex compiled successfully." << std::endl;
+
+    boost::smatch sm;  // Use boost::smatch for match results
+
+    // Perform the regex match against the URI
+    if (boost::regex_match(argument, sm, uuidre)) {
+
+        if (session->loglevel >= 5) {
+            *(session->logfile) << "IIIF :: Match Count: " << sm.size() << std::endl;
+        }
+
+        if (sm.size() > 0) {
+            std::string dir1 = sm[1];
+            std::string dir2 = sm[2];
+            std::string uuidfrag = sm[3];
+            std::string maxpix = sm[4];
+            std::string params = sm[5];
+            std::string uuid = dir1 + dir2 + uuidfrag;
+            std::string fpath = separator + dir1 + separator + dir2 + separator + uuid;
+
+            string filesystem_prefix = Environment::getFileSystemPrefix();
+
+            // Check for existence of this file
+            struct stat buffer;
+            if (stat((filesystem_prefix + "private/images" + fpath).c_str(), &buffer) == 0)
+                fpath = "/private/images" + fpath;
+            else if (stat((filesystem_prefix + "public/images" + fpath).c_str(), &buffer) == 0)
+                fpath = "/public/images" + fpath;
+
+            if (session->loglevel >= 5) {
+                *(session->logfile) << "IIIF :: params ::" << params << std::endl;
+            }
+            // if no params then we redirect to info.json response
+            if ( params.empty() ) {
+                // No parameters, so redirect to info request
+                string id;
+                string host = session->headers["BASE_URL"];
+                if ( host.length() > 0 ){
+                    // id = host + (session->headers["QUERY_STRING"]).substr(5, string::npos);
+                    id = host + argument;
+                }
+                else {
+                    string request_uri = session->headers["REQUEST_URI"];
+                    request_uri.erase( request_uri.length() - suffix.length(), string::npos );
+                    id = "http://" + session->headers["HTTP_HOST"] + request_uri;
+                }
+
+                if ( session->loglevel >= 2 )
+                    *(session->logfile) << "IIIF :: ID : " << id << endl;
+
+                if (!id.empty() && id.back() == '/') 
+                    id.pop_back();                     // Remove the trailing '/'
+
+                if ( session->loglevel >= 2 )
+                    *(session->logfile) << "IIIF :: ID : " << id << endl;
+
+                // issue the redirect
+                string header = string( "Status: 303 See Other\r\n" )
+                    + "Location: " + id + "/info.json\r\n"
+                    + "Server: iipsrv/" + VERSION + "\r\n"
+                    + "\r\n";
+                session->out->printf( (const char*) header.c_str() );
+                session->response->setImageSent();
+                if ( session->loglevel >= 2 ){
+                    *(session->logfile) << "IIIF :: Sending HTTP 303 See Other : " << id + "/info.json" << endl;
+                }
+                return;
+            }
+        }
+    } 
+    //else {
+    //    *(session->logfile) << "No match found." << std::endl;
+    //}
+  } 
+  catch (const boost::regex_error &e) {
+    *(session->logfile) << "Boost regex failed: " << e.what() << std::endl;
+  }
+
+  *(session->logfile) << "====================== filename: " << filename << std::endl;
+
+
+  // if URL points to a file that we have access to and doesn't specify any other parameters, redirect to the info.json service for that file 
     // Get our image pattern variable
-  string filecheck = Environment::getFileSystemPrefix() + argument;
+  /*string filecheck = Environment::getFileSystemPrefix() + argument;
   struct stat buffer;
   if ( stat (filecheck.c_str(), &buffer) == 0) {
     // No parameters, so redirect to info request
@@ -93,10 +190,11 @@ void IIIF::run( Session* session, const string& src )
     session->out->printf( (const char*) header.c_str() );
     session->response->setImageSent();
     if ( session->loglevel >= 2 ){
-      *(session->logfile) << "IIIF :: Sending HTTP 303 See Other : " << id + "/info.json" << endl;
+      *(session->logfile) << "IIIF :: Sending HTTP 3036 See Other : " << id + "/info.json" << endl;
     }
     return;
   }
+*/
 
   // Check if there is slash in argument and if it is not last / first character, extract identifier and suffix
   size_t lastSlashPos = argument.find_last_of("/");
@@ -132,6 +230,12 @@ void IIIF::run( Session* session, const string& src )
       request_uri.erase( request_uri.length() - suffix.length(), string::npos );
       id = "http://" + session->headers["HTTP_HOST"] + request_uri;
     }
+
+    *(session->logfile) << "IIIF :: ID : " << id << endl;
+    if (!id.empty() && id.back() == '/') 
+        id.pop_back();                     // Remove the trailing '/'
+    *(session->logfile) << "IIIF :: ID : " << id << endl;
+
     string header = string( "Status: 303 See Other\r\n" )
                     + "Location: " + id + "/info.json\r\n"
                     + "Server: iipsrv/" + VERSION + "\r\n"
@@ -139,7 +243,7 @@ void IIIF::run( Session* session, const string& src )
     session->out->printf( (const char*) header.c_str() );
     session->response->setImageSent();
     if ( session->loglevel >= 2 ){
-      *(session->logfile) << "IIIF :: Sending HTTP 303 See Other : " << id + "/info.json" << endl;
+      *(session->logfile) << "IIIF :: Sending HTTP 3034 See Other : " << id + "/info.json" << endl;
     }
     return;
   }
@@ -243,12 +347,13 @@ void IIIF::run( Session* session, const string& src )
                      << "     { \"width\" : " << (*session->image)->image_widths[numResolutions - 1]
                      << ", \"height\" : " << (*session->image)->image_heights[numResolutions - 1] << " }";
 
-    for ( int i = numResolutions - 2; i > 0; i-- ){
+    //for ( int i = numResolutions - 2; i > 0; i-- ){
+    for ( int i = numResolutions - 1; i > 0; i-- ){
       unsigned int w = (*session->image)->image_widths[i];
       unsigned int h = (*session->image)->image_heights[i];
       unsigned int max = session->view->getMaxSize();
       // Only advertise images below our max size value
-      if( (max == 0) || (w < max && h < max) ){
+      if ( (max == 0) || ( (w <= max) && (h <= max) ) ) {
 	infoStringStream << "," << endl
 			 << "     { \"width\" : " << w << ", \"height\" : " << h << " }";
       }
