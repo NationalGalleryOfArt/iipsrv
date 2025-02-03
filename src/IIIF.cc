@@ -343,19 +343,24 @@ void IIIF::run( Session* session, const string& src )
                      << "  \"protocol\" : \"" << IIIF_PROTOCOL << "\"," << endl
                      << "  \"width\" : " << width << "," << endl
                      << "  \"height\" : " << height << "," << endl
-                     << "  \"sizes\" : [" << endl
-                     << "     { \"width\" : " << (*session->image)->image_widths[numResolutions - 1]
-                     << ", \"height\" : " << (*session->image)->image_heights[numResolutions - 1] << " }";
+                     << "  \"sizes\" : [" << endl;
+    //                 << "     { \"width\" : " << (*session->image)->image_widths[numResolutions - 1]
+    //                 << ", \"height\" : " << (*session->image)->image_heights[numResolutions - 1] << " }";
 
-    //for ( int i = numResolutions - 2; i > 0; i-- ){
-    for ( int i = numResolutions - 1; i > 0; i-- ){
+    int first = 1;
+    for ( int i = numResolutions - 1; i >= 0; i-- ){
       unsigned int w = (*session->image)->image_widths[i];
       unsigned int h = (*session->image)->image_heights[i];
       unsigned int max = session->view->getMaxSize();
-      // Only advertise images below our max size value
+
+      // only list a size when the size is less than the maximum we can produce in a single image
       if ( (max == 0) || ( (w <= max) && (h <= max) ) ) {
-	infoStringStream << "," << endl
-			 << "     { \"width\" : " << w << ", \"height\" : " << h << " }";
+
+        // if this isn't the first size, then put a comma after the last size listed
+        if ( first != 1 ) 
+          infoStringStream << "," << endl;
+        infoStringStream << "     { \"width\" : " << w << ", \"height\" : " << h << " }";
+        first = 0;
       }
     }
 

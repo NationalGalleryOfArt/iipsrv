@@ -237,7 +237,7 @@ void CVT::send( Session* session ){
   //string basename = filename.substr( pos, filename.rfind(".")-pos );
   //string size_restriction;
 
-  string fname = sanitize_and_encode_filename((*session->image)->getOriginalFileName());
+  string fname = sanitize_and_encode_filename(session->imageCacheKey);
   string content_disposition_header = "inline;filename=\"" + fname + "\"";
 
   string attachment = sanitize_and_encode_filename(session->headers["ATTACHMENT_FILENAME"]);

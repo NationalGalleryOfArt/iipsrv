@@ -85,6 +85,7 @@ struct Session {
 
   imageCacheMapType *imageCache;
   Cache* tileCache;
+  string imageCacheKey;
 
   float oversamplingFactor;
 

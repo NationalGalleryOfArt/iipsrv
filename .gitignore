@@ -3,6 +3,7 @@
 *~
 Makefile
 doc/html
+default.jpg
 
 # Files made by autogen.sh.
 Makefile.in

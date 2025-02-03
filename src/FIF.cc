@@ -281,6 +281,9 @@ void FIF::run( Session* session, const string& src ){
     ss << argument << SIZESEP << session->view->getMaxSampleSize();
     string imageCacheKey = ss.str();
 
+    // save the image cache key to the session so it can be used as the filename for inline content disposition
+    session->imageCacheKey = imageCacheKey;
+
     if ( session->loglevel >= 5 )
         *(session->logfile) << "FIF :: Image cache key: " << imageCacheKey << endl;
 
