@@ -4,6 +4,8 @@
 Makefile
 doc/html
 default.jpg
+include
+share
 
 # Files made by autogen.sh.
 Makefile.in
