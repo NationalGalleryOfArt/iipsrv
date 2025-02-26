@@ -473,14 +473,33 @@ void FIF::run( Session* session, const string& src ){
 
                         if ( session->loglevel >= 2 ) 
                             *(session->logfile) << "FIF :: REQUEST URI: " << request_uri << endl;
-                        string header = string( "Status: 303 See Other\r\n" ) + 
+
+
+                        if (session->headers["REQUEST_METHOD"] == "OPTIONS") {
+                            *(session->logfile) << "FIF :: PREFLIGHT 204 RESPONSE: " << endl;
+                            // Handle CORS preflight request properly by returning 204 No Content
+                            string header = "Status: 204 No Content\r\n" +
+                                            //tring("Access-Control-Allow-Origin: *\r\n") +
+                                            //"Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n" +
+                                            //"Access-Control-Allow-Headers: Content-Type, Authorization\r\n" +
+                                            //"Access-Control-Max-Age: 3600\r\n" +
+                                            //"Server: iipsrv/" + VERSION + "\r\n" +
+                                            string("\r\n");
+                            session->out->printf((const char*)header.c_str());
+                            session->response->setImageSent();
+                            return;
+                        }
+                        else {
+                            *(session->logfile) << "FIF :: REDIRECT 303 RESPONSE: " << endl;
+                            string header = string( "Status: 303 See Other\r\n" ) + 
                                                 "Location: " + request_uri + "\r\n" + 
                                                 "Server: iipsrv/" + VERSION + "\r\n" + 
                                                 "\r\n";
-                        session->out->printf( (const char*) header.c_str() );
-                        session->response->setImageSent();
-                        session->response->setNotCacheable();
-                        return;
+                            session->out->printf( (const char*) header.c_str() );
+                            session->response->setImageSent();
+                            session->response->setNotCacheable();
+                            return;
+                        }
                     }
                 }
             }

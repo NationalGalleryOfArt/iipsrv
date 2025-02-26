@@ -234,8 +234,8 @@ void IIIF::run( Session* session, const string& src )
     *(session->logfile) << "IIIF :: ID : " << id << endl;
     if (!id.empty() && id.back() == '/') 
         id.pop_back();                     // Remove the trailing '/'
-    *(session->logfile) << "IIIF :: ID : " << id << endl;
 
+    *(session->logfile) << "IIIF :: ID : " << id << endl;
     string header = string( "Status: 303 See Other\r\n" )
                     + "Location: " + id + "/info.json\r\n"
                     + "Server: iipsrv/" + VERSION + "\r\n"
@@ -243,7 +243,7 @@ void IIIF::run( Session* session, const string& src )
     session->out->printf( (const char*) header.c_str() );
     session->response->setImageSent();
     if ( session->loglevel >= 2 ){
-      *(session->logfile) << "IIIF :: Sending HTTP 3034 See Other : " << id + "/info.json" << endl;
+      *(session->logfile) << "IIIF :: Sending HTTP 303 See Other : " << id + "/info.json" << endl;
     }
     return;
   }

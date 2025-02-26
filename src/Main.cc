@@ -680,6 +680,9 @@ int main( int argc, char *argv[] )
       if( (header = FCGX_GetParam("REQUEST_URI", request.envp)) ){
         session.headers["REQUEST_URI"] = string(header);
       }
+      if( (header = FCGX_GetParam("REQUEST_METHOD", request.envp)) ){
+        session.headers["REQUEST_METHOD"] = string(header);
+      }
       if ( (header = FCGX_GetParam("HTTPS", request.envp)) ) {
         session.headers["HTTPS"] = string(header);
       }
@@ -802,8 +805,6 @@ int main( int argc, char *argv[] )
 #ifdef HAVE_MEMCACHED
   #ifndef DEBUG
       if (!disable_primary_memcache) {
-        //logfile << "DAVE MAIN 1 ::::::::" << response.isCacheable() << endl; 
-        //logfile << "DAVE MAIN 2 ::::::::" << response.getCacheControl() << endl; 
         if ( response.getCacheControl() != "Cache-Control: no-cache" && response.isCacheable() ) {
             if( memcached.connected() ){
                 Timer memcached_timer;
