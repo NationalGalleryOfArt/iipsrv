@@ -494,6 +494,7 @@ void FIF::run( Session* session, const string& src ){
                             string header = string( "Status: 303 See Other\r\n" ) + 
                                                 "Location: " + request_uri + "\r\n" + 
                                                 "Server: iipsrv/" + VERSION + "\r\n" + 
+                                                "Cache-Control: no-cache\r\n" + 
                                                 "\r\n";
                             session->out->printf( (const char*) header.c_str() );
                             session->response->setImageSent();
