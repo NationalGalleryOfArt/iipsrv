@@ -1,142 +1,171 @@
 #!/bin/bash
 
+# Error handling function
 function handle_error() {
     /bin/echo "Script exited with status ${2} at line ${1}"
     if [ -z "${savefiles}" ]; then /bin/rm -f $tmpprefix*; fi
     if [ -z "${savefiles}" ]; then /bin/rm -f $outprefix*; fi
 }
 
+# Trap any error and invoke handler
 trap 'handle_error ${LINENO} $?' ERR
+set -e  # Exit on any error
 
-# cause the script to fail if any commands exist with non-zero status
-set -e
-
-if [[ -z "$1" || -z "$2" || -z "$3" ]]; then
-    /bin/echo "Usage:tiff_to_pyramid.bash <tmpdir> <full path to image source> <full path to output target> <save all working files - any value will do>";
-    exit 1;
+# Input arguments
+if [[ -z "$1" || -z "$2" || -z "$3" || -z "$4" ]]; then
+    /bin/echo "Usage: tiff_to_pyramid.bash <tmpdir> <input> <output> <max pixels or 'none'> <savefiles (optional)>"
+    exit 1
 fi
+
 if [[ ! -d $1 || ! -f $2 ]]; then
-    /bin/echo "Either the tmpdir or input file do not exist.";
-    exit 1;
+    /bin/echo "Either tmpdir or input file does not exist."
+    exit 1
 fi
 
 if [ -f $3 ]; then
-    /bin/echo "The output file already exists! Deleting it.";
+    /bin/echo "The output file already exists! Deleting it."
     if [ -z "${savefiles}" ]; then /bin/rm -f $3; fi
 fi
 
-/bin/touch $3;
+/bin/touch $3 || { echo "Could not create the output file."; exit 1; }
+/bin/rm -f $3  # Clean slate
 
-if [ ! -f $3 ]; then
-    /bin/echo "Could not create the output file.";
-    exit 1;
-fi
-
-/bin/rm -f $3
-
+# Setup variables
 tmpdir=$1
-# only process the first page of a potentially multi-page image document
 input=$2
 outfile=$3
-savefiles=$4
-pid=$$;
+maxpixels=$4
+savefiles=$5
+pid=$$
 tmpprefix=${tmpdir}/stripped_srgb_${pid}
 outprefix=${tmpdir}/srgb_${pid}
 
-# cleanup temp files that might already exist
-if [ -z "${savefiles}" ]; then /bin/rm -f $tmpprefix*; fi
-if [ -z "${savefiles}" ]; then /bin/rm -f $outprefix*; fi
+[[ ${maxpixels} == "none" ]] && unset maxpixels
 
-# first, use vipsheader to read the bands
-CHANNELS=$(/usr/bin/identify -format "%[channels]\n" ${input}[0] 2>/dev/null)
+# Cleanup pre-existing temp files
+[ -z "${savefiles}" ] && /bin/rm -f $tmpprefix* $outprefix*
+
+# Detect image properties
+CHANNELS=$(/usr/local/nga/bin/images/utils/pydentify.sh ${input} 2>/dev/null)
+BIT_DEPTH=$(/usr/bin/identify -format "%[depth]\n" ${input}[0] 2>/dev/null)
+COLORSPACE=$(/usr/bin/identify -format "%[colorspace]\n" ${input}[0] 2>/dev/null)
+
 echo "channels: ${CHANNELS}"
-if [ ${CHANNELS} = "srgba" ]; then
-    # we have to flatten the image to remove the alpha channel / trasparency before proceeding
-    echo "removing alpha channel from $input"
-    echo "/usr/local/bin/vips im_extract_bands $input ${input}.noalpha.tif 0 3"
-    /usr/local/bin/vips im_extract_bands $input ${input}.noalpha.tif 0 3   2>&1
-    #echo "/usr/local/bin/vips flatten $input ${input}.noalpha.tif[compression=none] --background 255,255,255"
-    #/usr/local/bin/vips flatten $input ${input}.noalpha.tif[compression=none] --background 255,255,255 2>&1
-    if [ -z "${savefiles}" ]; then /bin/rm $input; fi
+echo "bit depth: ${BIT_DEPTH}"
+echo "colorspace: ${COLORSPACE}"
+
+# Special case: 16-bit grayscale image
+if [[ ${COLORSPACE} == "Gray" && ${BIT_DEPTH} == "16" ]]; then
+    echo "Converting 16-bit grayscale to 8-bit..."
+    /usr/local/bin/vips linear ${input} ${input}.scaled.tif 0.0038910506 0
+    /usr/local/bin/vips cast ${input}.scaled.tif ${input}.8bit.tif uchar
+    /bin/mv ${input}.8bit.tif ${input}
+    /bin/rm -f ${input}.scaled.tif
+    CHANNELS=$(/usr/local/nga/bin/images/utils/pydentify.sh ${input} 2>/dev/null)
+    BIT_DEPTH=$(/usr/bin/identify -format "%[depth]\n" ${input}[0] 2>/dev/null)
+    COLORSPACE=$(/usr/bin/identify -format "%[colorspace]\n" ${input}[0] 2>/dev/null)
+    echo "Updated: channels=${CHANNELS}, bit depth=${BIT_DEPTH}, colorspace=${COLORSPACE}"
+fi
+
+# Remove alpha if present
+if [[ ${CHANNELS} == *"rgba"* || ${CHANNELS} == *"srgba"* ]]; then
+    echo "Removing alpha channel from $input"
+    /usr/local/bin/vips im_extract_bands $input ${input}.noalpha.tif 0 3
+    [ -z "${savefiles}" ] && /bin/rm $input
     /bin/mv ${input}.noalpha.tif $input
-elif [[ ${CHANNELS} != "srgb" && ${CHANNELS} != "gray" && ${CHANNELS} != "cmyk" ]]; then
-    echo "Image ${input} has color channels ${CHANNELS} which is not supported at this time."
-    exit 1;
+elif [[ ${CHANNELS} != *"srgb"* && ${CHANNELS} != *"gray"* && ${CHANNELS} != *"cmyk"* ]]; then
+    echo "Unsupported channel type: ${CHANNELS}"
+    exit 1
 fi
 
-# check for special case of gray colorspace and no embedded profile
-if [[ ${CHANNELS} == "gray" ]]; then
+# Embed sRGB ICC profile for gray images missing profile
+if [[ ${CHANNELS} == *"gray"* ]]; then
     ICCPROFILE=$(/usr/bin/identify -format "%[profile:icc]\n" ${input}[0] 2>/dev/null)
-    echo "icc profile description: ${ICCPROFILE}"
-    # in the case of gray with no embedded color profile or with an embedded sRGB profile that was probably erroneously applied to the image, 
-    # we can't just apply sRGB with the icc_transform because sRGB isn't an appropriate profile for the icc_transform command
-    # so we have to call vipsthumbnail instead which does some magick behind the scenes to properly convert between the profiles
     if [ -z "${ICCPROFILE}" ] || [ "${ICCPROFILE}" == "sRGB Profile" ]; then
-        W2=$(/usr/local/bin/vipsheader -f width ${input}[0] 2>/dev/null)
-        H2=$(/usr/local/bin/vipsheader -f height ${input}[0] 2>/dev/null)
-        echo "/usr/local/bin/vipsthumbnail $input[0] --eprofile=/usr/local/nga/etc/sRGBProfile.icc --size ${W2}x${H2} --intent perceptual -o ${tmpprefix}.tif[compression=none,strip]"
-        /usr/local/bin/vipsthumbnail $input[0] --eprofile=/usr/local/nga/etc/sRGBProfile.icc --size ${W2}x${H2} --intent perceptual -o ${tmpprefix}.tif[compression=none,strip] 2>&1
-        # note that in the above operation, vipsthumbnail doesn't embed the profile by default, so there won't be one in the result since we didn't start with one
+        W2=$(/usr/local/bin/vipsheader -f width ${input}[0])
+        H2=$(/usr/local/bin/vipsheader -f height ${input}[0])
+        /usr/local/bin/vipsthumbnail $input[0] --eprofile=/usr/local/nga/etc/sRGBProfile.icc --size ${W2}x${H2} --intent perceptual -o ${tmpprefix}.tif[compression=none,strip]
     fi
 fi
 
-# if we haven't already transformed color profile to sRGB like in above operation for a missing or incompatible image then do it now
+# General ICC conversion fallback
 if [ -z "${W2}" ]; then
-    # next, run an icc_transform to convert the original to sRGB (assume sRGB if no profile and otherwise use the embedded one) 
-    # and strip all metadata from the file; --embedded intructs vips to use embedded and --input-profile is only used as a fallback 
-    # if a profile isn't embedded
-    echo "/usr/local/bin/vips icc_transform $input ${tmpprefix}.tif[compression=none,strip] /usr/local/nga/etc/sRGBProfile.icc --embedded --input-profile /usr/local/nga/etc/sRGBProfile.icc"
-    /usr/local/bin/vips icc_transform $input ${tmpprefix}.tif[compression=none,strip] /usr/local/nga/etc/sRGBProfile.icc --embedded --input-profile /usr/local/nga/etc/sRGBProfile.icc --intent perceptual 2>&1 
+    /usr/local/bin/vips icc_transform $input ${tmpprefix}.tif[compression=none,strip] /usr/local/nga/etc/sRGBProfile.icc --embedded --input-profile /usr/local/nga/etc/sRGBProfile.icc --intent perceptual
 fi
 
-# now, embed an sRGB ICC profile in the resulting uncompressed tiff since we stripped out the profile above using the strip metadata directive
-# it would be nice if there was a way to do this during the icc_transform step, but there doesn't seem to be
-echo "/usr/local/bin/vips tiffsave ${tmpprefix}.tif ${outprefix}_0.tif --compression none --profile /usr/local/nga/etc/sRGBProfile.icc"
-/usr/local/bin/vips tiffsave ${tmpprefix}.tif ${outprefix}_0.tif --compression none --profile /usr/local/nga/etc/sRGBProfile.icc 2>&1
+# Remove alpha again if needed and copy with sRGB interpretation
+NUM_BANDS=$(/usr/local/bin/vipsheader -f bands "${tmpprefix}.tif")
+if [[ "$NUM_BANDS" == "4" ]]; then
+    /usr/local/bin/vips extract_band "${tmpprefix}.tif" "${tmpprefix}_3band.tif" 0 --n 3
+    SRC_FOR_COPY="${tmpprefix}_3band.tif"
+else
+    SRC_FOR_COPY="${tmpprefix}.tif"
+fi
 
-# read the width and height of the transformed file
-W=$(/usr/local/bin/vipsheader -f width ${outprefix}_0.tif)
-H=$(/usr/local/bin/vipsheader -f height ${outprefix}_0.tif)
-c=0;
-while [ 1 ]; do
-    W=$(( W / 2 ));
-    H=$(( H / 2 ));
-    #/bin/echo ${c} ${W} ${H}
+/usr/local/bin/vips copy "$SRC_FOR_COPY" "${tmpprefix}_rgb.tif" --interpretation srgb
+/usr/local/bin/vips tiffsave "${tmpprefix}_rgb.tif" "${outprefix}_0.tif" --compression none --profile /usr/local/nga/etc/sRGBProfile.icc
 
-    # since we already have a stripped and color transformed tiff that 
-    # is twice the resolution as the one are about to create, use that 
-    # one instead of the original when resizing which will save quite 
-    # a bit of processing time
-    echo "/usr/local/bin/vipsthumbnail ${outprefix}_$c.tif --size ${W}x${H}\! -o ${outprefix}_$(( c + 1 )).tif[compression=none] "
-    /usr/local/bin/vipsthumbnail ${outprefix}_$c.tif --size ${W}x${H}\! -o ${outprefix}_$(( c + 1 )).tif[compression=none] 2>&1 
+# Read dimensions of final base image
+W=$(/usr/local/bin/vipsheader -f width "${tmpprefix}_rgb.tif")
+H=$(/usr/local/bin/vipsheader -f height "${tmpprefix}_rgb.tif")
 
-    # reduce height and width by half and repeat process until small enough
-    if (( W < 1 || H < 1 || (( W < 129 && H < 129 )) )); then
-        break;
+# Copy first tile
+/bin/tiffcp -c jpeg:90 -t -w 256 -l 256 "${outprefix}_0.tif" -a "${outfile}"
+
+# Prepare optional restricted resolution
+if [[ ! -z ${maxpixels} && ${maxpixels} != "0" ]]; then
+    if (( W > H )); then
+        RW=$maxpixels
+        RH=$(( ($maxpixels * $H + $W / 2) / $W ))
+    else
+        RH=$maxpixels
+        RW=$(( ($maxpixels * $W + $H / 2) / $H ))
     fi
-    c=$(( c + 1 ));
+fi
+
+# Generate pyramid levels
+c=0; rc=0
+while true; do
+    W=$(( W / 2 ))
+    H=$(( H / 2 ))
+    /bin/echo ${c} ${W} ${H}
+    (( RW > 0 && RH > 0 && W >= 2*RW && H >= 2*RH )) && rc=$c
+    /usr/local/bin/vipsthumbnail ${outprefix}_$c.tif --size ${W}x${H}\! -o ${outprefix}_$(( c + 1 )).tif[compression=none]
+    /bin/tiffcp -c jpeg:90 -t -w 256 -l 256 ${outprefix}_$(( c + 1 )).tif -a ${outfile}
+    c=$(( c + 1 ))
+    (( W < 1 || H < 1 || (W < 129 && H < 129) )) && break
 done
 
-# once we have all sizes created, then we use tiffcp to perform the pyramid 
-# assembly and jpeg compression at 90 quality
+# Create restricted-res pyramid tiles
+if (( RW > 0 && RH > 0 )); then
+    while true; do
+        /bin/echo ${c} from:${rc} ${RW} ${RH}
+        /usr/local/bin/vipsthumbnail ${outprefix}_$rc.tif --size ${RW}x${RH}\! -o ${outprefix}_$(( c + 1 )).tif[compression=none]
+        /bin/tiffcp -c jpeg:90 -t -w 256 -l 256 ${outprefix}_$(( c + 1 )).tif -a ${outfile}
+        c=$(( c + 1 )); rc=$(( rc + 1 ))
+        RW=$(( RW / 2 )); RH=$(( RH / 2 ))
+        (( RW < 1 || RH < 1 || (RW < 129 && RH < 129) )) && break
+    done
+fi
 
-# note: tiffcp defaults to ycbcr photometric interpretation and presumably therefore 
-# chroma subsampling so by default it produces JPEGs about 3x smaller with ycbcr 
-# vs. when photometric interpretation is set to rgb
-# e.g. -c jpeg:r:90 vs. -c jpeg:90 
-echo "/bin/tiffcp -c jpeg:90 -t -w 256 -l 256 ${outprefix}_*.tif -a ${outfile} "
-/bin/tiffcp -c jpeg:90 -t -w 256 -l 256 ${outprefix}_*.tif -a ${outfile} 2>&1 
+# Embed restriction tag
+META_OK=1
+if [ ! -z $maxpixels ]; then
+    /usr/local/nga/bin/images/exif_write_max_pixels.pl ${outfile} $maxpixels || {
+        echo "Problem writing restricted image metadata"
+        META_OK=0
+    }
+fi
 
-# cleanup temp files but leave the outputput file in place
-if [ -z "${savefiles}" ]; then /bin/rm -f $tmpprefix*; fi
-if [ -z "${savefiles}" ]; then /bin/rm -f $outprefix*; fi
+# Clean up temp files
+[ -z "${savefiles}" ] && /bin/rm -f $tmpprefix* $outprefix*
 
-# sanity check
+# Final sanity check
 WF=$(/usr/local/bin/vipsheader -f width $outfile)
 HF=$(/usr/local/bin/vipsheader -f height $outfile)
 
-/bin/echo "Pyramid width: ${WF}"
-/bin/echo "Pyramid height: ${HF}"
+echo "Pyramid width: ${WF}"
+echo "Pyramid height: ${HF}"
 
-# final check
-exit $(( WF == W && HF == H ))
+# Exit 0 only if everything succeeded
+exit $(( WF == W && HF == H && META_OK == 1 ))
